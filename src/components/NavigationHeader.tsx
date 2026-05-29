@@ -88,12 +88,13 @@ export default function NavigationHeader() {
                 </button>
               </div>
             ) : (
-              <Link
-                href="/auth"
-                className="flex items-center space-x-1.5 px-5 py-2.5 rounded-2xl bg-[#111111] text-xs font-bold text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+              <a
+                href="/NutriAI.apk"
+                download
+                className="flex items-center space-x-1.5 px-5 py-2.5 rounded-2xl bg-slate-900 text-xs font-bold text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
-                Get Started
-              </Link>
+                Download App
+              </a>
             )}
           </div>
         </div>

@@ -4,9 +4,8 @@ import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
-  Mail, Lock, User as UserIcon, Sparkles, Phone,
-  ArrowRight, ArrowLeft, ShieldCheck, CheckCircle,
-  Eye, EyeOff
+  Mail, User as UserIcon, Sparkles, Phone,
+  ArrowRight, ArrowLeft, ShieldCheck, CheckCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,10 +13,10 @@ type FlowState = "welcome" | "method" | "google_picker" | "phone_entry" | "phone
 
 function AuthPageContent() {
   const {
-    user, loading, pendingOtp,
-    loginWithEmail, signupWithEmail,
+    user, loading, pendingOtp, pendingEmailOtp,
     loginWithGoogle,
     sendOtp, verifyOtp,
+    sendEmailOtp, verifyEmailOtp
   } = useAuth();
 
   const router       = useRouter();
@@ -28,9 +27,12 @@ function AuthPageContent() {
 
   // Email form states - INITIALIZED TO EMPTY (No autofill or demo shortcuts!)
   const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
   const [name,     setName]     = useState("");
-  const [showPass, setShowPass] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtpDigits, setEmailOtpDigits] = useState(["", "", "", "", "", ""]);
+  const emailOtpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [emailCountdown, setEmailCountdown] = useState(0);
+  const [canResendEmail, setCanResendEmail] = useState(false);
 
   // Google picker simulated interactive OAuth state
   const [customGoogleEmail, setCustomGoogleEmail] = useState("");
@@ -68,6 +70,16 @@ function AuthPageContent() {
     return () => clearTimeout(t);
   }, [countdown, flowState]);
 
+  // ── Email OTP Resend Countdown ───────────────────────────────────────────
+  useEffect(() => {
+    if (emailCountdown <= 0) {
+      setCanResendEmail(true);
+      return;
+    }
+    const t = setTimeout(() => setEmailCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [emailCountdown]);
+
   // ── Helpers ─────────────────────────────────────────────────────────────
   const startBusy = (text: string) => {
     setBusy(true); setBusyText(text); setError(null); setInfo(null);
@@ -95,7 +107,7 @@ function AuthPageContent() {
     }
   };
 
-  // ── Phone OTP Send ───────────────────────────────────────────────────────
+  // ── Phone OTP Send & Verify ───────────────────────────────────────────────
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = phone.replace(/\D/g, "");
@@ -108,7 +120,7 @@ function AuthPageContent() {
       setCountdown(60);
       setCanResend(false);
       setError(null);
-      setInfo("OTP sent! Real SMS delivered if within Textbelt limits; backup code is in simulated SMS banner.");
+      setInfo("OTP sent! Check the simulated SMS banner above.");
       setFlowState("phone_otp");
       setTimeout(() => otpRefs.current[0]?.focus(), 250);
     } else {
@@ -133,7 +145,6 @@ function AuthPageContent() {
     }
   };
 
-  // ── OTP Box Inputs ───────────────────────────────────────────────────────
   const handleOtpChange = (idx: number, val: string) => {
     const digit = val.replace(/\D/g, "").slice(-1);
     const next  = [...otpDigits]; next[idx] = digit; setOtpDigits(next);
@@ -155,7 +166,6 @@ function AuthPageContent() {
     otpRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
-  // ── OTP Verify ───────────────────────────────────────────────────────────
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otpDigits.join("");
@@ -172,22 +182,85 @@ function AuthPageContent() {
     }
   };
 
-  // ── Email / Password Auth Submit ─────────────────────────────────────────
-  const handleEmailAuthSubmit = async (e: React.FormEvent) => {
+  // ── Gmail OTP Send & Verify ───────────────────────────────────────────────
+  const handleSendEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLogin) {
-      startBusy("Authenticating...");
-      const result = await loginWithEmail(email, password);
-      stopBusy();
-      if (!result.success) {
-        setError(result.error || "Login failed.");
-      }
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!isLogin && !name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
+    startBusy("Sending Gmail verification code...");
+    const result = await sendEmailOtp(cleanEmail);
+    stopBusy();
+    if (result.success) {
+      setEmailOtpSent(true);
+      setEmailOtpDigits(["", "", "", "", "", ""]);
+      setEmailCountdown(60);
+      setCanResendEmail(false);
+      setError(null);
+      setInfo("Gmail OTP sent! View the verification code in the simulated Gmail notification banner above.");
+      setTimeout(() => emailOtpRefs.current[0]?.focus(), 250);
     } else {
-      startBusy("Creating account...");
-      const result = await signupWithEmail(email, name, password);
-      stopBusy();
-      if (!result.success) {
-        setError(result.error || "Registration failed.");
+      setError(result.error || "Failed to send Gmail OTP.");
+    }
+  };
+
+  const handleResendEmailOtp = async () => {
+    if (!canResendEmail) return;
+    const cleanEmail = email.trim().toLowerCase();
+    startBusy("Resending Gmail verification code...");
+    const result = await sendEmailOtp(cleanEmail);
+    stopBusy();
+    if (result.success) {
+      setEmailOtpDigits(["", "", "", "", "", ""]);
+      setEmailCountdown(60);
+      setCanResendEmail(false);
+      setInfo("New verification code sent to your Gmail.");
+      setTimeout(() => emailOtpRefs.current[0]?.focus(), 100);
+    } else {
+      setError(result.error || "Failed to resend Gmail OTP.");
+    }
+  };
+
+  const handleEmailOtpChange = (idx: number, val: string) => {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const next  = [...emailOtpDigits]; next[idx] = digit; setEmailOtpDigits(next);
+    setError(null);
+    if (digit && idx < 5) emailOtpRefs.current[idx + 1]?.focus();
+  };
+
+  const handleEmailOtpKeyDown = (idx: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !emailOtpDigits[idx] && idx > 0)
+      emailOtpRefs.current[idx - 1]?.focus();
+  };
+
+  const handleEmailOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const next = [...emailOtpDigits];
+    for (let i = 0; i < 6; i++) next[i] = pasted[i] || "";
+    setEmailOtpDigits(next);
+    emailOtpRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = emailOtpDigits.join("");
+    if (code.length < 6) { setError("Please enter all 6 digits."); return; }
+    startBusy("Verifying Gmail verification code...");
+    const result = await verifyEmailOtp(email, code, isLogin ? undefined : name);
+    stopBusy();
+    if (!result.success) {
+      setError(result.error || "Gmail verification failed.");
+      if (result.error?.includes("expired") || result.error?.includes("Too many")) {
+        setEmailOtpDigits(["", "", "", "", "", ""]);
+        setEmailOtpSent(false);
       }
     }
   };
@@ -212,6 +285,29 @@ function AuthPageContent() {
                 <span className="text-[9px] uppercase tracking-wider font-bold text-purple-400 block font-mono">Simulated SMS Gateway</span>
                 <p className="font-bold text-slate-100">Verification Code</p>
                 <p className="text-slate-300 font-mono mt-0.5">Your NutriTrack verification OTP is <strong className="text-white font-extrabold underline">{pendingOtp}</strong>. Valid for 5 minutes.</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pending Gmail OTP Simulated Preview Banner */}
+      <AnimatePresence>
+        {pendingEmailOtp && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.95 }}
+            className="fixed top-6 left-4 right-4 z-50 flex justify-center pointer-events-none"
+          >
+            <div className="bg-[#1a1a24] text-white p-4 rounded-[20px] max-w-sm w-full border border-red-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.3)] flex items-start space-x-3 pointer-events-auto leading-tight">
+              <div className="h-9 w-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+                <Mail className="h-5 w-5 text-red-400 animate-pulse" />
+              </div>
+              <div className="space-y-0.5 text-xs text-left">
+                <span className="text-[9px] uppercase tracking-wider font-bold text-red-400 block font-mono">Simulated Gmail Inbox</span>
+                <p className="font-bold text-slate-100">Verification Code</p>
+                <p className="text-slate-300 font-mono mt-0.5">Your NutriTrack verification OTP is <strong className="text-white font-extrabold underline">{pendingEmailOtp}</strong>. Valid for 5 minutes.</p>
               </div>
             </div>
           </motion.div>
@@ -288,8 +384,8 @@ function AuthPageContent() {
                   onClick={() => {
                     setIsLogin(false);
                     setEmail("");
-                    setPassword("");
                     setName("");
+                    setEmailOtpSent(false);
                     setFlowState("email_form");
                   }}
                   className="w-full py-3.5 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs transition-colors"
@@ -315,17 +411,17 @@ function AuthPageContent() {
               </div>
 
               <div className="space-y-2.5">
-                {/* 1. Email Login */}
+                {/* 1. Gmail Login (OTP Only!) */}
                 <button
                   onClick={() => {
                     setEmail("");
-                    setPassword("");
+                    setEmailOtpSent(false);
                     setFlowState("email_form");
                   }}
                   className="w-full py-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 px-4 font-bold text-slate-700 hover:bg-slate-100/50 transition-colors text-xs"
                 >
                   <Mail className="h-4.5 w-4.5 text-slate-400" />
-                  <span>Continue with Email & Password</span>
+                  <span>Continue with Gmail OTP</span>
                 </button>
 
                 {/* 2. Phone OTP Login */}
@@ -381,26 +477,26 @@ function AuthPageContent() {
                 <div className="space-y-1">
                   <label htmlFor="google-name" className="font-bold text-slate-600">Google Username</label>
                   <input
-                    id="google-name"
-                    type="text"
-                    required
-                    placeholder="e.g. Rahul Sharma"
-                    value={customGoogleName}
-                    onChange={(e) => setCustomGoogleName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                     id="google-name"
+                     type="text"
+                     required
+                     placeholder="e.g. Rahul Sharma"
+                     value={customGoogleName}
+                     onChange={(e) => setCustomGoogleName(e.target.value)}
+                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <label htmlFor="google-email" className="font-bold text-slate-600">Google Email Address</label>
                   <input
-                    id="google-email"
-                    type="email"
-                    required
-                    placeholder="e.g. rahul.sharma@gmail.com"
-                    value={customGoogleEmail}
-                    onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                     id="google-email"
+                     type="email"
+                     required
+                     placeholder="e.g. rahul.sharma@gmail.com"
+                     value={customGoogleEmail}
+                     onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
                   />
                 </div>
 
@@ -535,7 +631,7 @@ function AuthPageContent() {
             </motion.div>
           )}
 
-          {/* Email Form Sign-in & Sign-up */}
+          {/* Email OTP Sign-in & Sign-up Form */}
           {flowState === "email_form" && (
             <motion.div
               key="email_form"
@@ -546,101 +642,125 @@ function AuthPageContent() {
             >
               <div className="text-center space-y-1">
                 <h3 className="font-outfit text-base font-bold text-slate-800">
-                  {isLogin ? "Sign In to Account" : "Register New Account"}
+                  {emailOtpSent
+                    ? "Verify Gmail OTP"
+                    : isLogin
+                      ? "Sign In to Account"
+                      : "Register New Account"
+                  }
                 </h3>
                 <p className="text-xs text-slate-400">
-                  {isLogin ? "Verify credentials" : "Create password-protected bio specs"}
+                  {emailOtpSent
+                    ? `Enter the 6-digit code sent to ${email}`
+                    : isLogin
+                      ? "Fast password-free entry using Gmail OTP verification"
+                      : "Create secure bio-metrics record linked to your Gmail"
+                  }
                 </p>
               </div>
 
-              <form onSubmit={handleEmailAuthSubmit} className="space-y-3.5 text-xs text-left">
-                {!isLogin && (
+              {!emailOtpSent ? (
+                <form onSubmit={handleSendEmailOtp} className="space-y-3.5 text-xs text-left">
+                  {!isLogin && (
+                    <div className="space-y-1">
+                      <label htmlFor="reg-name" className="font-bold text-slate-600">Full Name</label>
+                      <div className="relative">
+                        <UserIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                        <input
+                          id="reg-name"
+                          type="text"
+                          required
+                          placeholder="Rahul Sharma"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
-                    <label htmlFor="reg-name" className="font-bold text-slate-600">Full Name</label>
+                    <label htmlFor="reg-email" className="font-bold text-slate-600">Gmail Address</label>
                     <div className="relative">
-                      <UserIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                      <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                       <input
-                        id="reg-name"
-                        type="text"
+                        id="reg-email"
+                        type="email"
                         required
-                        placeholder="Rahul Sharma"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        placeholder="rahul@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none"
                       />
                     </div>
                   </div>
-                )}
 
-                <div className="space-y-1">
-                  <label htmlFor="reg-email" className="font-bold text-slate-600">Email Address</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      id="reg-email"
-                      type="email"
-                      required
-                      placeholder="rahul@bca.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none"
-                    />
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold mt-2 hover:scale-[1.01] active:scale-[0.99] transition-all"
+                  >
+                    Send Gmail Verification OTP
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyEmailOtp} className="space-y-5 text-xs">
+                  {/* 6 Digit Grid inputs for Email OTP */}
+                  <div className="flex justify-between gap-1.5 max-w-[280px] mx-auto" onPaste={handleEmailOtpPaste}>
+                    {emailOtpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => { emailOtpRefs.current[idx] = el; }}
+                        type="text"
+                        maxLength={1}
+                        pattern="\d*"
+                        required
+                        value={digit}
+                        onChange={(e) => handleEmailOtpChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleEmailOtpKeyDown(idx, e)}
+                        className="h-10 w-9 bg-slate-50 border border-slate-200 rounded-lg text-center font-mono font-extrabold text-sm focus:outline-none focus:border-red-500/50"
+                      />
+                    ))}
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <label htmlFor="reg-pass" className="font-bold text-slate-600">Secure Password</label>
-                    {isLogin && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (email) alert("Mock Password Reset Sent to " + email);
-                          else setError("Please enter your email address to reset password.");
-                        }}
-                        className="text-[9px] font-bold text-purple-600 hover:underline"
-                      >
-                        Forgot Password?
-                      </button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                    <input
-                      id="reg-pass"
-                      type={showPass ? "text" : "password"}
-                      required
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 focus:outline-none"
-                    />
+                  <div className="flex justify-between text-[10px] px-2 font-mono text-slate-400">
+                    <span>Resend code {emailCountdown > 0 ? `(${emailCountdown}s)` : ""}</span>
                     <button
                       type="button"
-                      onClick={() => setShowPass(!showPass)}
-                      className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600"
+                      disabled={!canResendEmail}
+                      onClick={handleResendEmailOtp}
+                      className={`font-bold uppercase ${canResendEmail ? "text-red-500" : "text-slate-300"}`}
                     >
-                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      Resend OTP
                     </button>
                   </div>
-                </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold mt-2"
-                >
-                  {isLogin ? "Access App Dashboard" : "Register & Sign In"}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold"
+                  >
+                    Verify Gmail Code & Access App
+                  </button>
+                </form>
+              )}
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 text-[10px] text-slate-400">
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="font-bold text-purple-600 hover:underline"
-                >
-                  {isLogin ? "New user? Sign Up here" : "Have an account? Login here"}
-                </button>
+                {!emailOtpSent ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsLogin(!isLogin)}
+                    className="font-bold text-purple-600 hover:underline"
+                  >
+                    {isLogin ? "New user? Register here" : "Have an account? Login here"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEmailOtpSent(false)}
+                    className="font-bold text-purple-600 hover:underline"
+                  >
+                    Change Email Address
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => goBack("method")}

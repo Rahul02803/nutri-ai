@@ -29,7 +29,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isMockMode: boolean;
-  pendingOtp: string | null; // the generated OTP (shown in simulated SMS preview banner)
+  pendingOtp: string | null; // simulated SMS banner
+  pendingEmailOtp: string | null; // simulated Gmail banner
 
   // Primary auth methods
   loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -38,6 +39,8 @@ interface AuthContextType {
   loginWithApple: () => Promise<{ success: boolean; error?: string }>;
   sendOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  sendEmailOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
+  verifyEmailOtp: (email: string, code: string, name?: string) => Promise<{ success: boolean; error?: string }>;
 
   // Session management
   logout: () => void;
@@ -49,8 +52,9 @@ interface AuthContextType {
 }
 
 // ─── Storage Constants ─────────────────────────────────────────────────────────
-const SESSION_KEY = "nutriai_session_v2";
-const OTP_KEY     = "nutriai_otp_session_v2";
+const SESSION_KEY   = "nutriai_session_v2";
+const OTP_KEY       = "nutriai_otp_session_v2";
+const EMAIL_OTP_KEY = "nutriai_email_otp_session_v2";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]         = useState<User | null>(null);
   const [loading, setLoading]   = useState(true);
   const [pendingOtp, setPendingOtp] = useState<string | null>(null);
+  const [pendingEmailOtp, setPendingEmailOtp] = useState<string | null>(null);
 
   const isMockMode = false; // Set false to indicate strict production-grade rules
 
@@ -466,6 +471,123 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
+  // ── Send Email OTP ───────────────────────────────────────────────────────
+  const sendEmailOtp = async (
+    email: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const clean = email.trim().toLowerCase();
+    if (!clean || !clean.includes("@") || !clean.includes(".")) {
+      return { success: false, error: "Please enter a valid email address." };
+    }
+
+    await delay(700);
+
+    const code: string = generateOtp();
+    const session = {
+      email:     clean,
+      code,
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      attempts:  0,
+    };
+
+    try {
+      localStorage.setItem(EMAIL_OTP_KEY, JSON.stringify(session));
+      setPendingEmailOtp(code);
+    } catch (e) {
+      return { success: false, error: "Could not initiate Gmail OTP session." };
+    }
+
+    return { success: true };
+  };
+
+  // ── Verify Email OTP ──────────────────────────────────────────────────────
+  const verifyEmailOtp = async (
+    email: string,
+    code: string,
+    name?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    setLoading(true);
+    await delay(600);
+
+    const raw = localStorage.getItem(EMAIL_OTP_KEY);
+    if (!raw) {
+      setLoading(false);
+      return { success: false, error: "No active Gmail OTP session found. Please request a new code." };
+    }
+
+    let session: any;
+    try {
+      session = JSON.parse(raw);
+    } catch (e) {
+      localStorage.removeItem(EMAIL_OTP_KEY);
+      setLoading(false);
+      return { success: false, error: "Gmail OTP session corrupted. Please request a new code." };
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (session.email !== cleanEmail) {
+      setLoading(false);
+      return { success: false, error: "Email address mismatch. Please restart the login flow." };
+    }
+
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(EMAIL_OTP_KEY);
+      setPendingEmailOtp(null);
+      setLoading(false);
+      return { success: false, error: "Gmail OTP has expired. Please request a new code." };
+    }
+
+    session.attempts += 1;
+
+    if (session.attempts > 3) {
+      localStorage.removeItem(EMAIL_OTP_KEY);
+      setPendingEmailOtp(null);
+      setLoading(false);
+      return { success: false, error: "Too many incorrect attempts. Please request a new Gmail OTP." };
+    }
+
+    if (code.trim() !== session.code) {
+      localStorage.setItem(EMAIL_OTP_KEY, JSON.stringify(session));
+      setLoading(false);
+      const left = 3 - session.attempts;
+      return {
+        success: false,
+        error: `Invalid OTP. ${left} attempt${left !== 1 ? "s" : ""} remaining.`,
+      };
+    }
+
+    // ✓ OTP matches!
+    localStorage.removeItem(EMAIL_OTP_KEY);
+    setPendingEmailOtp(null);
+
+    const key = accountKey(cleanEmail);
+    let u: User;
+    try {
+      const rawUser = localStorage.getItem(key);
+      if (rawUser) {
+        u = JSON.parse(rawUser);
+        u = refreshSession(u);
+        localStorage.setItem(key, JSON.stringify(u));
+      } else {
+        const finalName = name?.trim() || cleanEmail.split("@")[0].replace(/[._\-+]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        u = makeUser({
+          email:    cleanEmail,
+          name:     finalName,
+          provider: "email",
+        });
+        localStorage.setItem(key, JSON.stringify(u));
+      }
+    } catch (e) {
+      setLoading(false);
+      return { success: false, error: "Gmail profile creation failed." };
+    }
+
+    persist(u);
+    setLoading(false);
+    return { success: true };
+  };
+
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = () => {
     if (user) {
@@ -527,10 +649,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user, loading, isMockMode, pendingOtp,
+        user, loading, isMockMode, pendingOtp, pendingEmailOtp,
         loginWithEmail, signupWithEmail,
         loginWithGoogle, loginWithApple,
         sendOtp, verifyOtp,
+        sendEmailOtp, verifyEmailOtp,
         logout, updateUserOnboardStatus,
         login, signup,
       }}

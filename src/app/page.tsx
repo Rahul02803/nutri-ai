@@ -91,25 +91,13 @@ export default function LandingPage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-4">
-              <Link
-                href="/auth"
-                className="px-8 py-4 rounded-2xl bg-[#111111] text-white font-bold text-xs hover:scale-[1.01] active:scale-[0.98] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.08)] flex items-center space-x-2"
-              >
-                <span>🚀 Get Started (Access App)</span>
-                <ChevronRight className="h-4 w-4" />
-              </Link>
               <a
                 href="/NutriAI.apk"
                 download
-                className="px-6 py-4 rounded-2xl border border-[#ECECEF] bg-white text-[#111111] font-bold text-xs hover:bg-[#F8F8FA] active:scale-[0.98] transition-all flex items-center space-x-2 shadow-xs"
+                className="px-8 py-4 rounded-2xl bg-slate-900 text-white font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.08)] flex items-center space-x-2"
               >
-                <span>🤖 Download Android App</span>
-              </a>
-              <a
-                href="#download"
-                className="px-6 py-4 rounded-2xl border border-[#ECECEF] bg-white text-slate-400 font-bold text-xs select-none cursor-not-allowed flex items-center space-x-2 shadow-xs"
-              >
-                <span>🍏 Download iOS App (Soon)</span>
+                <span>🚀 Download Android App (.apk)</span>
+                <ChevronRight className="h-4 w-4" />
               </a>
             </div>
           </div>
@@ -493,19 +481,13 @@ export default function LandingPage() {
             Download NutriTrack AI on your phone to unlock calorie calculators, custom BMR formulas, computer vision scanning, and dynamic weight progress history.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4 pt-4">
-            <Link
-              href="/auth"
-              className="px-8 py-3.5 rounded-2xl bg-white text-[#111111] font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md animate-bounce"
-            >
-              Get Started Free (Login App)
-            </Link>
+          <div className="flex justify-center pt-4">
             <a
               href="/NutriAI.apk"
               download
-              className="px-6 py-3.5 rounded-2xl border border-slate-700 bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 active:scale-[0.98] transition-all flex items-center space-x-2"
+              className="px-8 py-4 rounded-2xl bg-white text-[#111111] font-extrabold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md animate-bounce flex items-center space-x-2"
             >
-              <span>Download Android APK</span>
+              <span>🚀 Download Android App (.apk)</span>
             </a>
           </div>
         </div>
