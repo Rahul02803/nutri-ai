@@ -4,12 +4,10 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useApp } from "@/context/AppContext";
-import { Activity, MessageSquare, ShieldAlert, LogOut, Sparkles, LineChart, User as UserIcon } from "lucide-react";
+import { Activity, LogOut, Sparkles, LineChart, User as UserIcon } from "lucide-react";
 
 export default function NavigationHeader() {
   const { user, logout } = useAuth();
-  const { resetAllData } = useApp();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -29,11 +27,11 @@ export default function NavigationHeader() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo Section */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/10 transition-transform duration-300 group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-purple-600 animate-pulse" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 transition-transform duration-300 group-hover:scale-105">
+              <Sparkles className="h-5 w-5 text-emerald-600 animate-pulse" />
             </div>
             <span className="font-outfit text-xl font-bold tracking-tight text-[#111111] transition-colors duration-300">
-              NutriTrack <span className="bg-gradient-to-tr from-sky-400 to-purple-500 bg-clip-text text-transparent">AI</span>
+              NutriTrack <span className="bg-gradient-to-tr from-sky-400 to-emerald-500 bg-clip-text text-transparent">AI</span>
             </span>
           </Link>
  
@@ -62,35 +60,9 @@ export default function NavigationHeader() {
                   }`}
                 >
                   <LineChart className="h-4 w-4" />
-                  <span>Analytics</span>
-                </Link>
- 
-                <Link
-                  href="/chatbot"
-                  className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
-                    isActive("/chatbot")
-                      ? "bg-[#111111] border-[#111111] text-white"
-                      : "text-[#8D8D92] hover:text-[#111111] hover:bg-slate-50 border-transparent"
-                  }`}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  <span>AI Coach</span>
+                  <span>Reports & Charts</span>
                 </Link>
               </>
-            )}
- 
-            {user?.role === "admin" && (
-              <Link
-                href="/admin"
-                className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
-                  isActive("/admin")
-                    ? "bg-red-500 border-red-500 text-white"
-                    : "text-[#8D8D92] hover:text-[#111111] hover:bg-slate-50 border-transparent"
-                }`}
-              >
-                <ShieldAlert className="h-4 w-4" />
-                <span>Admin Panel</span>
-              </Link>
             )}
           </nav>
  
@@ -101,7 +73,7 @@ export default function NavigationHeader() {
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="text-xs font-semibold text-[#111111]">{user.name}</span>
                   <span className="text-[9px] text-[#8D8D92] font-mono capitalize">
-                    {user.role === "admin" ? "🛡️ System Admin" : "⭐ Premium Member"}
+                    🎓 BCA Final Project
                   </span>
                 </div>
                 <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#F8F8FA] border border-[#ECECEF]">

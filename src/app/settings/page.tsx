@@ -134,7 +134,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <span className="text-[10px] tracking-wider uppercase font-mono bg-slate-50 text-slate-400 px-3 py-1.5 rounded-xl border border-slate-200">
-          PRO Member
+          BCA Project
         </span>
       </div>
 
