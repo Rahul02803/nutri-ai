@@ -1,0 +1,8 @@
+{
+  "appId": "com.nutriai.app",
+  "appName": "NutriAI",
+  "webDir": "out",
+  "server": {
+    "androidScheme": "https"
+  }
+}
