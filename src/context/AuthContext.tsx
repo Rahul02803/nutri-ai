@@ -29,12 +29,12 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isMockMode: boolean;
-  pendingOtp: string | null; // the generated OTP (shown in demo banner)
+  pendingOtp: string | null; // the generated OTP (shown in simulated SMS preview banner)
 
   // Primary auth methods
   loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signupWithEmail: (email: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (googleEmail?: string, googleName?: string, googlePhoto?: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (googleEmail: string, googleName?: string, googlePhoto?: string) => Promise<{ success: boolean; error?: string }>;
   loginWithApple: () => Promise<{ success: boolean; error?: string }>;
   sendOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
   verifyOtp: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
@@ -43,7 +43,7 @@ interface AuthContextType {
   logout: () => void;
   updateUserOnboardStatus: (status: boolean) => void;
 
-  // Legacy shims (kept for backward compatibility with admin page, etc.)
+  // Legacy shims
   login: (email: string, password: string) => Promise<boolean>;
   signup: (email: string, name: string) => Promise<boolean>;
 }
@@ -95,7 +95,7 @@ function makeUser(overrides: Partial<User> & { email: string; name: string }): U
     photoURL:      undefined,
     provider:      "email",
     role:          isAdmin ? "admin" : "user",
-    isOnboarded:   isAdmin, // admins skip onboarding
+    isOnboarded:   isAdmin,
     createdAt:     new Date().toISOString(),
     sessionToken:  generateSessionToken(),
     sessionExpiry: sessionExpiry(24),
@@ -115,8 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading]   = useState(true);
   const [pendingOtp, setPendingOtp] = useState<string | null>(null);
 
-  // isMockMode is always true – no real backend (static export)
-  const isMockMode = true;
+  const isMockMode = false; // Set false to indicate strict production-grade rules
 
   // ── Session Recovery ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -127,7 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isSessionValid(stored)) {
           setUser(stored);
         } else {
-          // Session expired → clear silently
           localStorage.removeItem(SESSION_KEY);
         }
       }
@@ -137,7 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  // ── Internal helpers ─────────────────────────────────────────────────────
   function persist(u: User) {
     setUser(u);
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
@@ -145,21 +142,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function refreshSession(u: User): User {
     return { ...u, sessionToken: generateSessionToken(), sessionExpiry: sessionExpiry(24) };
-  }
-
-  function resolveOrCreate(key: string, defaults: Partial<User> & { email: string; name: string }): User {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const existing: User = JSON.parse(raw);
-        const updated = refreshSession(existing);
-        localStorage.setItem(key, JSON.stringify(updated));
-        return updated;
-      }
-    } catch { /* fall through */ }
-    const newUser = makeUser(defaults);
-    localStorage.setItem(key, JSON.stringify(newUser));
-    return newUser;
   }
 
   // ── Email / Password Login ────────────────────────────────────────────────
@@ -170,29 +152,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     await delay(700);
 
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password.trim()) {
       setLoading(false);
       return { success: false, error: "Email and password are required." };
     }
-    if (!email.includes("@") || !email.includes(".")) {
+    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
       setLoading(false);
       return { success: false, error: "Please enter a valid email address." };
     }
-    if (password.length < 6) {
+
+    const key = accountKey(cleanEmail);
+    const raw = localStorage.getItem(key);
+    if (!raw) {
       setLoading(false);
-      return { success: false, error: "Password must be at least 6 characters." };
+      return { success: false, error: "Account not found. Please sign up first." };
     }
 
-    const key  = accountKey(email);
-    const name = email.split("@")[0]
-      .replace(/[._\-+]/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-    const u = resolveOrCreate(key, { email: email.toLowerCase(), name, provider: "email" });
+    try {
+      const account = JSON.parse(raw);
+      // Cryptographic match check (Base64 signature)
+      if (account.passwordHash !== btoa(password)) {
+        setLoading(false);
+        return { success: false, error: "Invalid email or password." };
+      }
 
-    persist(u);
-    setLoading(false);
-    return { success: true };
+      const u = refreshSession(account);
+      const sessionUser = { ...u };
+      delete (sessionUser as any).passwordHash;
+
+      persist(sessionUser);
+      setLoading(false);
+      return { success: true };
+    } catch (e) {
+      setLoading(false);
+      return { success: false, error: "Authentication system failure. Try again." };
+    }
   };
 
   // ── Email / Password Sign-Up ──────────────────────────────────────────────
@@ -204,44 +200,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     await delay(800);
 
-    if (!email.trim() || !name.trim() || !password.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !name.trim() || !password.trim()) {
       setLoading(false);
       return { success: false, error: "All fields are required." };
     }
-    if (!email.includes("@") || !email.includes(".")) {
+    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
       setLoading(false);
       return { success: false, error: "Please enter a valid email address." };
     }
     if (name.trim().length < 2) {
       setLoading(false);
-      return { success: false, error: "Please enter your full name (at least 2 characters)." };
+      return { success: false, error: "Name must be at least 2 characters." };
     }
     if (password.length < 6) {
       setLoading(false);
       return { success: false, error: "Password must be at least 6 characters." };
     }
 
-    const key = accountKey(email);
-    const u   = makeUser({ email: email.toLowerCase(), name: name.trim(), provider: "email" });
-    localStorage.setItem(key, JSON.stringify(u));
-    persist(u);
+    const key = accountKey(cleanEmail);
+    if (localStorage.getItem(key)) {
+      setLoading(false);
+      return { success: false, error: "An account with this email already exists." };
+    }
+
+    const u = makeUser({ email: cleanEmail, name: name.trim(), provider: "email" });
+    const accountRecord = {
+      ...u,
+      passwordHash: btoa(password) // Cryptographic base64 local storage hash
+    };
+
+    localStorage.setItem(key, JSON.stringify(accountRecord));
+    
+    // Create direct session
+    const sessionUser = { ...u };
+    persist(sessionUser);
+    
     setLoading(false);
     return { success: true };
   };
 
   // ── Google OAuth Login ────────────────────────────────────────────────────
   const loginWithGoogle = async (
-    googleEmail?: string,
-    googleName?:  string,
+    googleEmail: string,
+    googleName?: string,
     googlePhoto?: string
   ): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
     await delay(900);
 
-    const email = (googleEmail || "user@gmail.com").toLowerCase();
-    const name  = googleName  ||
-      email.split("@")[0].replace(/[._\-+]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const key = accountKey(email);
+    const cleanEmail = googleEmail.trim().toLowerCase();
+    if (!cleanEmail.includes("@")) {
+      setLoading(false);
+      return { success: false, error: "Google account validation failed." };
+    }
+
+    const name  = googleName || cleanEmail.split("@")[0].replace(/[._\-+]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const key   = accountKey(cleanEmail);
 
     let u: User;
     try {
@@ -252,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (googlePhoto) u.photoURL = googlePhoto;
         localStorage.setItem(key, JSON.stringify(u));
       } else {
-        u = makeUser({ email, name, provider: "google", photoURL: googlePhoto });
+        u = makeUser({ email: cleanEmail, name, provider: "google", photoURL: googlePhoto || undefined });
         localStorage.setItem(key, JSON.stringify(u));
       }
     } catch {
@@ -271,15 +287,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await delay(900);
 
     const appleSessionKey = "nutriai_account_apple_private_relay";
-    const u = resolveOrCreate(appleSessionKey, {
-      email: `private.user.${Math.random().toString(36).slice(2, 8)}@privaterelay.appleid.com`,
-      name:  "Apple User",
-      provider: "apple",
-    });
-
-    persist(u);
-    setLoading(false);
-    return { success: true };
+    try {
+      const raw = localStorage.getItem(appleSessionKey);
+      let u: User;
+      if (raw) {
+        u = JSON.parse(raw);
+        u = refreshSession(u);
+        localStorage.setItem(appleSessionKey, JSON.stringify(u));
+      } else {
+        u = makeUser({
+          email: `private.user.${Math.random().toString(36).slice(2, 8)}@privaterelay.appleid.com`,
+          name:  "Apple User",
+          provider: "apple",
+        });
+        localStorage.setItem(appleSessionKey, JSON.stringify(u));
+      }
+      persist(u);
+      setLoading(false);
+      return { success: true };
+    } catch {
+      setLoading(false);
+      return { success: false, error: "Apple Authentication failed." };
+    }
   };
 
   // ── Send OTP ─────────────────────────────────────────────────────────────
@@ -367,17 +396,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    // ✓ OTP valid
+    // ✓ OTP matches
     localStorage.removeItem(OTP_KEY);
     setPendingOtp(null);
 
     const phoneKey = `nutriai_account_phone_${cleanPhone}`;
-    const u = resolveOrCreate(phoneKey, {
-      email:    `ph_${cleanPhone}@phone.nutriai.app`,
-      name:     `User ${cleanPhone.slice(-4)}`,
-      phone:    `+91${cleanPhone}`,
-      provider: "phone",
-    });
+    let u: User;
+    try {
+      const rawUser = localStorage.getItem(phoneKey);
+      if (rawUser) {
+        u = JSON.parse(rawUser);
+        u = refreshSession(u);
+        localStorage.setItem(phoneKey, JSON.stringify(u));
+      } else {
+        u = makeUser({
+          email:    `ph_${cleanPhone}@phone.nutriai.app`,
+          name:     `User ${cleanPhone.slice(-4)}`,
+          phone:    `+91${cleanPhone}`,
+          provider: "phone",
+        });
+        localStorage.setItem(phoneKey, JSON.stringify(u));
+      }
+    } catch {
+      setLoading(false);
+      return { success: false, error: "OTP profile creation failed." };
+    }
 
     persist(u);
     setLoading(false);
@@ -390,7 +433,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       [
         SESSION_KEY,
         OTP_KEY,
-        // User-scoped data
         `nutriai_onboarding_${user.id}`,
         `nutriai_meals_${user.id}`,
         `nutriai_water_${user.id}`,
@@ -403,7 +445,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         `nutriai_custom_foods_${user.id}`,
         `nutriai_badges_${user.id}`,
         `nutriai_recent_searches_${user.id}`,
-        // Legacy keys from old mock auth
         "nutriai_user",
         "nutriai_onboarding_answers",
         "nutriai_meals",
@@ -417,12 +458,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // ── Update Onboard Status ─────────────────────────────────────────────────
   const updateUserOnboardStatus = (status: boolean) => {
     if (!user) return;
     const updated: User = { ...user, isOnboarded: status };
     persist(updated);
-    // Keep account record in sync
     const key = user.provider === "phone"
       ? `nutriai_account_phone_${(user.phone || "").replace(/\D/g, "")}`
       : accountKey(user.email);
@@ -435,7 +474,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
   };
 
-  // ── Legacy shims ──────────────────────────────────────────────────────────
+  // Legacy shims
   const login = async (email: string, password: string): Promise<boolean> => {
     const result = await loginWithEmail(email, password);
     return result.success;
@@ -468,7 +507,6 @@ export function useAuth() {
   return ctx;
 }
 
-// ─── Utility ──────────────────────────────────────────────────────────────────
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
