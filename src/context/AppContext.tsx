@@ -141,14 +141,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [fastingElapsedTime, setFastingElapsedTime] = useState<number>(0);
 
   // Health sync states
-  const [steps, setSteps] = useState<number>(4200);
+  const [steps, setSteps] = useState<number>(0);
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
-  const [streakCount, setStreakCount] = useState<number>(3);
+  const [streakCount, setStreakCount] = useState<number>(0);
   const [unlockedBadges, setUnlockedBadges] = useState<Badge[]>([]);
 
   // Initialize and load persistent data
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setOnboardingData(null);
+      setMeals([]);
+      setWaterLogged(0);
+      setWeightLogs([]);
+      setFoodCatalog(INITIAL_FOODS);
+      setFavorites([]);
+      setRecentSearches([]);
+      setCustomFoods([]);
+      setIsFasting(false);
+      setFastingStartTime(null);
+      setFastingElapsedTime(0);
+      setSteps(0);
+      setWorkouts([]);
+      setStreakCount(0);
+      setUnlockedBadges([]);
+      setTargets(null);
+      return;
+    }
 
     const todayStr = new Date().toISOString().split("T")[0];
 
@@ -217,68 +235,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedMeals) {
         setMeals(JSON.parse(storedMeals) || []);
       } else {
-        // Seed preloaded meals for a gorgeous startup view
-        const seededMeals: LoggedMeal[] = [
-          {
-            id: "m1",
-            name: "Idli with Sambar",
-            mealType: "Breakfast",
-            calories: 185,
-            protein: 6.5,
-            carbs: 36,
-            fat: 2,
-            servings: 1,
-            loggedDate: todayStr,
-            fiber: 4,
-            sugar: 3.5,
-            sodium: 410,
-            potassium: 160,
-            vitaminA: 35,
-            vitaminC: 3,
-            calcium: 55,
-            iron: 1.1
-          },
-          {
-            id: "m2",
-            name: "Basmati Rice with Paneer Tikka Masala",
-            mealType: "Lunch",
-            calories: 475,
-            protein: 18.3,
-            carbs: 56,
-            fat: 20.4,
-            servings: 1,
-            loggedDate: todayStr,
-            fiber: 3.6,
-            sugar: 4.1,
-            sodium: 485,
-            potassium: 225,
-            vitaminA: 120,
-            vitaminC: 6.8,
-            calcium: 360,
-            iron: 2.0
-          },
-          {
-            id: "m3",
-            name: "Whey Protein Shake & Apple",
-            mealType: "Snack",
-            calories: 200,
-            protein: 25.4,
-            carbs: 21.5,
-            fat: 1.2,
-            servings: 1,
-            loggedDate: todayStr,
-            fiber: 4.9,
-            sugar: 15.5,
-            sodium: 56,
-            potassium: 320,
-            vitaminA: 8,
-            vitaminC: 7,
-            calcium: 149,
-            iron: 0.3
-          }
-        ];
-        setMeals(seededMeals);
-        localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(seededMeals));
+        setMeals([]);
       }
     } catch (e) {
       setMeals([]);
@@ -290,8 +247,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedWater) {
         setWaterLogged(parseInt(storedWater) || 0);
       } else {
-        setWaterLogged(1250);
-        localStorage.setItem(`nutriai_water_${user.id}`, "1250");
+        setWaterLogged(0);
       }
     } catch (e) {
       setWaterLogged(0);
@@ -303,22 +259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedWeights) {
         setWeightLogs(JSON.parse(storedWeights) || []);
       } else {
-        const seededWeights: WeightLog[] = [];
-        const now = new Date();
-        const initialWeight = 78.5;
-        
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(now.getDate() - i);
-          const dateStr = date.toISOString().split("T")[0];
-          const weight = initialWeight - (6 - i) * 0.2 + (Math.random() * 0.15 - 0.07);
-          seededWeights.push({
-            weight: Math.round(weight * 10) / 10,
-            date: dateStr,
-          });
-        }
-        setWeightLogs(seededWeights);
-        localStorage.setItem(`nutriai_weights_${user.id}`, JSON.stringify(seededWeights));
+        setWeightLogs([]);
       }
     } catch (e) {
       setWeightLogs([]);
@@ -381,7 +322,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 10. Steps Loading
     try {
       const storedSteps = localStorage.getItem(`nutriai_steps_${user.id}`);
-      setSteps(parseInt(storedSteps || "4200"));
+      setSteps(parseInt(storedSteps || "0"));
     } catch (e) {
       console.error(e);
     }
@@ -392,26 +333,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedWorkouts) {
         setWorkouts(JSON.parse(storedWorkouts));
       } else {
-        const seededWorkouts: WorkoutLog[] = [
-          {
-            id: "w1",
-            name: "Morning Yoga Flow",
-            type: "Cardio",
-            duration: 30,
-            caloriesBurned: 150,
-            loggedDate: todayStr,
-          },
-          {
-            id: "w2",
-            name: "Upper Body Strength Push",
-            type: "Strength",
-            duration: 45,
-            caloriesBurned: 320,
-            loggedDate: todayStr,
-          }
-        ];
-        setWorkouts(seededWorkouts);
-        localStorage.setItem(`nutriai_workouts_${user.id}`, JSON.stringify(seededWorkouts));
+        setWorkouts([]);
       }
     } catch (e) {
       console.error(e);
@@ -420,30 +342,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // 12. Streaks and Badges Loading
     try {
       const storedStreak = localStorage.getItem(`nutriai_streak_${user.id}`);
-      setStreakCount(parseInt(storedStreak || "3"));
+      setStreakCount(parseInt(storedStreak || "0"));
       
       const storedBadges = localStorage.getItem(`nutriai_badges_${user.id}`);
       if (storedBadges) {
         setUnlockedBadges(JSON.parse(storedBadges));
       } else {
-        const seededBadges: Badge[] = [
-          {
-            id: "first_meal",
-            name: "First Step",
-            description: "Logged your first meal on NutriTrack AI",
-            icon: "🥗",
-            unlockedDate: todayStr,
-          },
-          {
-            id: "water_champ",
-            name: "Hydration Master",
-            description: "Drank over 3,000ml of water in a day",
-            icon: "💧",
-            unlockedDate: todayStr,
-          }
-        ];
-        setUnlockedBadges(seededBadges);
-        localStorage.setItem(`nutriai_badges_${user.id}`, JSON.stringify(seededBadges));
+        setUnlockedBadges([]);
       }
     } catch (e) {
       console.error(e);
@@ -793,23 +698,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Resets profile data
   const resetAllData = () => {
     if (!user) return;
-    setOnboardingData(null);
-    setMeals([]);
-    setWaterLogged(0);
-    setWeightLogs([]);
-    setFoodCatalog(INITIAL_FOODS);
-    setFavorites([]);
-    setRecentSearches([]);
-    setCustomFoods([]);
-    setIsFasting(false);
-    setFastingStartTime(null);
-    setFastingElapsedTime(0);
-    setSteps(4200);
-    setWorkouts([]);
-    setStreakCount(3);
-    setUnlockedBadges([]);
-    updateUserOnboardStatus(false);
 
+    // 1. Clear LocalStorage first!
     localStorage.removeItem(`nutriai_onboarding_${user.id}`);
     localStorage.removeItem(`nutriai_meals_${user.id}`);
     localStorage.removeItem(`nutriai_water_${user.id}`);
@@ -826,6 +716,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(`nutriai_workouts_${user.id}`);
     localStorage.removeItem(`nutriai_streak_${user.id}`);
     localStorage.removeItem(`nutriai_badges_${user.id}`);
+
+    // 2. Reset React states
+    setOnboardingData(null);
+    setMeals([]);
+    setWaterLogged(0);
+    setWeightLogs([]);
+    setFoodCatalog(INITIAL_FOODS);
+    setFavorites([]);
+    setRecentSearches([]);
+    setCustomFoods([]);
+    setIsFasting(false);
+    setFastingStartTime(null);
+    setFastingElapsedTime(0);
+    setSteps(0);
+    setWorkouts([]);
+    setStreakCount(0);
+    setUnlockedBadges([]);
+    setTargets({
+      bmi: 23.5,
+      bmiCategory: "Normal",
+      bmr: 1650,
+      tdee: 2200,
+      targetCalories: 2000,
+      targetProtein: 140,
+      targetCarbs: 210,
+      targetFat: 65,
+      waterTargetMl: 3000,
+    });
+
+    // 3. Finally, update user onboard status (which triggers user change)
+    updateUserOnboardStatus(false);
   };
 
   return (

@@ -43,6 +43,7 @@ export default function ScannerPage() {
   const [analysisData, setAnalysisData] = useState<any | null>(null);
   const [logMealType, setLogMealType] = useState<"Breakfast" | "Lunch" | "Dinner" | "Snack">("Lunch");
   const [portionServings, setPortionServings] = useState("1");
+  const [foodDescription, setFoodDescription] = useState("");
 
   if (!user) return null;
 
@@ -102,7 +103,7 @@ export default function ScannerPage() {
     }
 
     try {
-      const data = await visualMealPhotoScan(imgData, imgName);
+      const data = await visualMealPhotoScan(imgData, imgName, foodDescription);
       setAnalysisData(data);
     } catch (e) {
       console.error(e);
@@ -147,6 +148,7 @@ export default function ScannerPage() {
     setSelectedImageName("");
     setShowAnalysisResults(false);
     setAnalysisData(null);
+    setFoodDescription("");
   };
 
   return (
@@ -233,6 +235,26 @@ export default function ScannerPage() {
               </div>
             )}
           </GlassCard>
+
+          {/* Cal AI Text Calibration input */}
+          <div className="space-y-2 text-left bg-white/60 backdrop-blur-xl p-4.5 rounded-[24px] border border-slate-100 shadow-xs">
+            <label htmlFor="food-desc-input" className="text-xs text-slate-600 font-bold flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-emerald-500 animate-pulse animate-duration-1000" />
+              What is on your plate? (Optional AI calibration)
+            </label>
+            <p className="text-[10px] text-slate-400 leading-normal">
+              Type details of your meal (e.g., &ldquo;Oats with almond milk and banana&rdquo; or &ldquo;Paneer roll&rdquo;) to guide the scanner for perfect Cal AI portion and macro calculations.
+            </p>
+            <input
+              id="food-desc-input"
+              type="text"
+              value={foodDescription}
+              onChange={(e) => setFoodDescription(e.target.value)}
+              placeholder="Auto-detect meal photo OR enter dish details..."
+              disabled={isScanning}
+              className="w-full bg-[#F8F8FA] border border-[#ECECEF] rounded-xl py-3 px-4 text-xs font-semibold text-[#111111] focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 transition-all placeholder:text-[#8D8D92] placeholder:font-normal"
+            />
+          </div>
 
           {/* Quick snaps simulator selectors */}
           <div className="space-y-3.5 text-left">

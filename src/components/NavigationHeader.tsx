@@ -18,7 +18,6 @@ export default function NavigationHeader() {
 
   const handleLogout = () => {
     logout();
-    resetAllData();
     router.push("/");
   };
 

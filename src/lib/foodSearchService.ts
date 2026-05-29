@@ -301,13 +301,144 @@ export async function barcodeLookupOfflineOnline(barcode: string): Promise<FoodI
 /**
  * Direct browser visual photo portions analyzer simulation
  */
-export async function visualMealPhotoScan(image: string, imageName: string): Promise<any> {
+export async function visualMealPhotoScan(image: string, imageName: string, userDescription?: string): Promise<any> {
   // Direct client-side simulated AI delay
   await new Promise((resolve) => setTimeout(resolve, 1500));
 
   const nameLower = (imageName || "").toLowerCase();
+  const descLower = (userDescription || "").toLowerCase().trim();
   let result: any = null;
 
+  // 1. If userDescription is provided, search our local INITIAL_FOODS or fuzzy evaluate!
+  if (descLower) {
+    // A. Fuzzy match local foods database
+    const localMatch = INITIAL_FOODS.find((f) => 
+      f.name.toLowerCase().includes(descLower) || 
+      descLower.includes(f.name.toLowerCase())
+    );
+
+    if (localMatch) {
+      return {
+        name: localMatch.name,
+        servingSize: localMatch.servingSize,
+        calories: localMatch.calories,
+        protein: localMatch.protein,
+        carbs: localMatch.carbs,
+        fat: localMatch.fat,
+        fiber: localMatch.fiber ?? 0,
+        sugar: localMatch.sugar ?? 0,
+        sodium: localMatch.sodium ?? 0,
+        potassium: localMatch.potassium ?? 0,
+        vitaminA: localMatch.vitaminA ?? 0,
+        vitaminC: localMatch.vitaminC ?? 0,
+        calcium: localMatch.calcium ?? 0,
+        iron: localMatch.iron ?? 0,
+        confidence: 99
+      };
+    }
+
+    // B. Call direct offline-online search and take top result if available
+    try {
+      const searchMatches = await searchFoodsOfflineOnline(descLower);
+      if (searchMatches && searchMatches.length > 0) {
+        const topFood = searchMatches[0];
+        return {
+          name: topFood.name,
+          servingSize: topFood.servingSize,
+          calories: topFood.calories,
+          protein: topFood.protein,
+          carbs: topFood.carbs,
+          fat: topFood.fat,
+          fiber: topFood.fiber ?? 0,
+          sugar: topFood.sugar ?? 0,
+          sodium: topFood.sodium ?? 0,
+          potassium: topFood.potassium ?? 0,
+          vitaminA: topFood.vitaminA ?? 0,
+          vitaminC: topFood.vitaminC ?? 0,
+          calcium: topFood.calcium ?? 0,
+          iron: topFood.iron ?? 0,
+          confidence: 97
+        };
+      }
+    } catch (err) {
+      console.warn("Visual search lookup failed", err);
+    }
+
+    // C. Calibrated parser if it doesn't exist in local/USDA databases
+    // Heuristically calculate nutrition parameters
+    let estCal = 250;
+    let estPro = 8;
+    let estCarb = 30;
+    let estFat = 7;
+    let estFiber = 2;
+
+    if (descLower.includes("chicken") || descLower.includes("fish") || descLower.includes("salmon") || descLower.includes("meat")) {
+      estCal = 320;
+      estPro = 28;
+      estCarb = 5;
+      estFat = 12;
+    } else if (descLower.includes("egg") || descLower.includes("omlet") || descLower.includes("scramble")) {
+      estCal = 180;
+      estPro = 14;
+      estCarb = 2;
+      estFat = 11;
+    } else if (descLower.includes("paneer") || descLower.includes("tofu") || descLower.includes("cheese")) {
+      estCal = 260;
+      estPro = 16;
+      estCarb = 4;
+      estFat = 18;
+    } else if (descLower.includes("shake") || descLower.includes("whey") || descLower.includes("protein")) {
+      estCal = 150;
+      estPro = 26;
+      estCarb = 3;
+      estFat = 1.5;
+    } else if (descLower.includes("roti") || descLower.includes("chapati") || descLower.includes("bread") || descLower.includes("naan")) {
+      estCal = 110;
+      estPro = 3.5;
+      estCarb = 22;
+      estFat = 1;
+    } else if (descLower.includes("rice") || descLower.includes("biryani") || descLower.includes("pulao")) {
+      estCal = 220;
+      estPro = 4.5;
+      estCarb = 45;
+      estFat = 2;
+    } else if (descLower.includes("apple") || descLower.includes("banana") || descLower.includes("fruit") || descLower.includes("berry")) {
+      estCal = 85;
+      estPro = 0.8;
+      estCarb = 21;
+      estFat = 0.2;
+      estFiber = 3.5;
+    } else if (descLower.includes("salad") || descLower.includes("vegetable") || descLower.includes("broccoli")) {
+      estCal = 120;
+      estPro = 4;
+      estCarb = 10;
+      estFat = 6;
+      estFiber = 4.5;
+    }
+
+    // Capitalize user's description
+    const capitalizedName = userDescription!.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+    return {
+      name: `${capitalizedName} (Calibrated)`,
+      servingSize: "1 plate (estimated)",
+      calories: estCal,
+      protein: estPro,
+      carbs: estCarb,
+      fat: estFat,
+      fiber: estFiber,
+      sugar: Math.round(estCarb * 0.1 * 10) / 10,
+      sodium: estFat * 30 + 100,
+      potassium: estPro * 15 + 120,
+      vitaminA: 60,
+      vitaminC: 4,
+      calcium: 80,
+      iron: 1.5,
+      confidence: 95
+    };
+  }
+
+  // 2. If NO userDescription, use imageName keywords or fallback to a gorgeous randomized healthy list!
   if (nameLower.includes("salad") || nameLower.includes("veg")) {
     result = {
       name: "Avocado & Chickpea Green Salad",
@@ -381,23 +512,150 @@ export async function visualMealPhotoScan(image: string, imageName: string): Pro
       confidence: 97
     };
   } else {
-    result = {
-      name: "North Indian Paneer Roll",
-      servingSize: "1 Roll (180g)",
-      calories: 380,
-      protein: 16.5,
-      carbs: 42.0,
-      fat: 15.8,
-      fiber: 4.5,
-      sugar: 3.8,
-      sodium: 590,
-      potassium: 260,
-      vitaminA: 95,
-      vitaminC: 5.4,
-      calcium: 290,
-      iron: 1.9,
-      confidence: 88
-    };
+    // Diverse, highly realistic healthy meal presets generator!
+    // Instead of defaulting to paneer roll every time, cycle through 8 premium fitness options!
+    const premiumPresets = [
+      {
+        name: "Scrambled Eggs with Avocado Toast",
+        servingSize: "1 plate (210g)",
+        calories: 380,
+        protein: 22.0,
+        carbs: 24.0,
+        fat: 19.5,
+        fiber: 5.2,
+        sugar: 2.1,
+        sodium: 440,
+        potassium: 340,
+        vitaminA: 150,
+        vitaminC: 4.8,
+        calcium: 120,
+        iron: 2.6,
+        confidence: 90
+      },
+      {
+        name: "Grilled Salmon with Asparagus Tiers",
+        servingSize: "1 serving (240g)",
+        calories: 390,
+        protein: 34.5,
+        carbs: 8.0,
+        fat: 22.4,
+        fiber: 2.8,
+        sugar: 1.2,
+        sodium: 380,
+        potassium: 620,
+        vitaminA: 180,
+        vitaminC: 12.0,
+        calcium: 95,
+        iron: 1.9,
+        confidence: 93
+      },
+      {
+        name: "Organic Oats Bowl with Chia & Berries",
+        servingSize: "1 bowl (180g)",
+        calories: 290,
+        protein: 9.5,
+        carbs: 48.0,
+        fat: 5.6,
+        fiber: 7.4,
+        sugar: 11.5,
+        sodium: 120,
+        potassium: 290,
+        vitaminA: 20,
+        vitaminC: 14.5,
+        calcium: 150,
+        iron: 2.2,
+        confidence: 92
+      },
+      {
+        name: "Strawberry Whey Isolate Shake",
+        servingSize: "1 shaker (350ml)",
+        calories: 160,
+        protein: 26.2,
+        carbs: 4.8,
+        fat: 1.8,
+        fiber: 0.8,
+        sugar: 2.5,
+        sodium: 90,
+        potassium: 210,
+        vitaminA: 10,
+        vitaminC: 3.2,
+        calcium: 190,
+        iron: 0.3,
+        confidence: 95
+      },
+      {
+        name: "Grilled Chicken Quinoa Bowl",
+        servingSize: "1 bowl (250g)",
+        calories: 420,
+        protein: 36.0,
+        carbs: 38.0,
+        fat: 11.2,
+        fiber: 4.5,
+        sugar: 2.2,
+        sodium: 520,
+        potassium: 480,
+        vitaminA: 85,
+        vitaminC: 6.2,
+        calcium: 75,
+        iron: 3.1,
+        confidence: 94
+      },
+      {
+        name: "Classic Masala Dosa with Sambar",
+        servingSize: "1 Dosa + Sambar",
+        calories: 310,
+        protein: 7.2,
+        carbs: 54.0,
+        fat: 7.5,
+        fiber: 4.8,
+        sugar: 4.2,
+        sodium: 590,
+        potassium: 220,
+        vitaminA: 40,
+        vitaminC: 3.5,
+        calcium: 68,
+        iron: 1.4,
+        confidence: 89
+      },
+      {
+        name: "Paneer Tikka Salad Wrap",
+        servingSize: "1 wrap (180g)",
+        calories: 350,
+        protein: 16.0,
+        carbs: 36.0,
+        fat: 14.8,
+        fiber: 4.2,
+        sugar: 3.5,
+        sodium: 510,
+        potassium: 240,
+        vitaminA: 110,
+        vitaminC: 5.2,
+        calcium: 310,
+        iron: 1.6,
+        confidence: 91
+      },
+      {
+        name: "Spiced Chickpea & Hummus Platter",
+        servingSize: "1 plate (200g)",
+        calories: 270,
+        protein: 11.5,
+        carbs: 32.0,
+        fat: 9.8,
+        fiber: 6.5,
+        sugar: 2.8,
+        sodium: 460,
+        potassium: 310,
+        vitaminA: 45,
+        vitaminC: 7.8,
+        calcium: 110,
+        iron: 2.8,
+        confidence: 92
+      }
+    ];
+
+    // Seed-like hash selection based on imageName size or date seconds
+    const index = Math.abs((imageName || "").length + new Date().getSeconds()) % premiumPresets.length;
+    result = premiumPresets[index];
   }
 
   return result;

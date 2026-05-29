@@ -897,16 +897,6 @@ export default function DashboardPage() {
                 })}
               </div>
 
-              {/* Barcode scanner dialogue link */}
-              {activeTab === "search" && (
-                <button
-                  onClick={() => setShowBarcodeDialog(true)}
-                  className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <Barcode className="h-3.5 w-3.5 text-emerald-500" />
-                  <span>Scan Barcode</span>
-                </button>
-              )}
             </div>
 
             {/* Render Tab Contents */}
@@ -1601,85 +1591,6 @@ export default function DashboardPage() {
                     className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm"
                   >
                     Confirm & Add to Today&apos;s Logs
-                  </button>
-                </form>
-              </GlassCard>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Floating Barcode scanner simulator dialog */}
-      <AnimatePresence>
-        {showBarcodeDialog && (
-          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm"
-            >
-              <GlassCard glow glowColor="emerald" className="p-6 space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <span className="font-outfit font-bold text-slate-800 flex items-center gap-1.5">
-                    <Barcode className="h-5 w-5 text-emerald-500" />
-                    Barcode Scanner Simulator
-                  </span>
-                  <button
-                    onClick={() => {
-                      setShowBarcodeDialog(false);
-                      setTypedBarcode("");
-                      setBarcodeError("");
-                    }}
-                    className="text-xs text-slate-400 hover:text-slate-800"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                <form onSubmit={handleBarcodeLookupSubmit} className="space-y-4">
-                  <p className="text-[10px] text-slate-400 leading-relaxed text-left">
-                    Input a product barcode. Test using seeded codes:
-                    <br />
-                    • Starbucks Grande Latte: <span className="font-mono font-bold text-slate-700 bg-slate-50 px-1 py-0.5 rounded border">8801043014847</span>
-                    <br />
-                    • McDonald&apos;s Cheeseburger: <span className="font-mono font-bold text-slate-700 bg-slate-50 px-1 py-0.5 rounded border">0021000612239</span>
-                    <br />
-                    • Whey Protein Scoop: <span className="font-mono font-bold text-slate-700 bg-slate-50 px-1 py-0.5 rounded border">748927020084</span>
-                  </p>
-
-                  <div className="space-y-1.5 text-left">
-                    <label htmlFor="barcode-number" className="text-xs text-slate-600 font-semibold">Barcode Number</label>
-                    <input
-                      id="barcode-number"
-                      type="text"
-                      required
-                      placeholder="Enter 12-13 digit UPC/EAN barcode..."
-                      value={typedBarcode}
-                      onChange={(e) => setTypedBarcode(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-800 focus:outline-none focus:border-emerald-500/50"
-                    />
-                  </div>
-
-                  {barcodeError && (
-                    <p className="text-[10px] text-rose-600 bg-rose-50 border border-rose-100 p-2 rounded-xl text-left">
-                      {barcodeError}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={barcodeLoading}
-                    className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center space-x-1"
-                  >
-                    {barcodeLoading ? (
-                      <span>Consulting Barcode Database...</span>
-                    ) : (
-                      <>
-                        <Barcode className="h-4.5 w-4.5" />
-                        <span>Query Scanning Database</span>
-                      </>
-                    )}
                   </button>
                 </form>
               </GlassCard>
