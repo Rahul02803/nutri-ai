@@ -912,9 +912,9 @@ export default function DashboardPage() {
                     exit={{ opacity: 0 }}
                     className="space-y-4"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                       {/* Search Bar */}
-                      <div className="relative">
+                      <div className="sm:col-span-6 relative">
                         <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                         <input
                           type="text"
@@ -924,12 +924,23 @@ export default function DashboardPage() {
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-800 focus:outline-none focus:border-emerald-500/50"
                         />
                       </div>
+                      {/* Scan Barcode Button */}
+                      <div className="sm:col-span-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowBarcodeDialog(true)}
+                          className="w-full flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl border border-emerald-100 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-700 transition-colors shadow-xs h-full"
+                        >
+                          <Barcode className="h-4 w-4" />
+                          <span>Scan Barcode</span>
+                        </button>
+                      </div>
                       {/* Log Category */}
-                      <div>
+                      <div className="sm:col-span-3">
                         <select
                           value={selectedMealType}
                           onChange={(e: any) => setSelectedMealType(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-slate-800 focus:outline-none"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs text-slate-800 focus:outline-none h-full"
                         >
                           <option value="Breakfast">Breakfast</option>
                           <option value="Lunch">Lunch</option>
@@ -1591,6 +1602,118 @@ export default function DashboardPage() {
                     className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm"
                   >
                     Confirm & Add to Today&apos;s Logs
+                  </button>
+                </form>
+              </GlassCard>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Barcode Scanner Dialog */}
+      <AnimatePresence>
+        {showBarcodeDialog && (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md"
+            >
+              <GlassCard glow glowColor="emerald" className="p-6 space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-1.5 text-left">
+                    <Barcode className="h-5 w-5 text-emerald-500 animate-pulse" />
+                    <span className="font-outfit font-bold text-slate-800">Scan Barcode (CORS USDA & OFF)</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowBarcodeDialog(false);
+                      setTypedBarcode("");
+                      setBarcodeError("");
+                    }}
+                    className="text-xs text-slate-400 hover:text-slate-800"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {/* Neon scanline laser visual animation */}
+                <div className="h-32 w-full bg-[#111115] rounded-2xl relative overflow-hidden flex flex-col items-center justify-center border border-slate-800 shadow-inner">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.15),transparent)]" />
+                  
+                  {/* Laser line */}
+                  <motion.div
+                    className="absolute left-0 right-0 h-0.5 bg-emerald-500 shadow-[0_0_8px_#10b981]"
+                    animate={{ top: ["10%", "90%", "10%"] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+
+                  {/* Mock Barcode graphics */}
+                  <div className="flex items-center space-x-1 opacity-20">
+                    {[1, 3, 2, 4, 1, 3, 2, 1, 4, 3, 2, 1, 2, 3, 4, 1, 2, 3].map((val, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white h-12"
+                        style={{ width: `${val * 2}px` }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-emerald-400/80 font-mono tracking-widest uppercase mt-2 z-10 font-bold animate-pulse">
+                    Laser scan view active
+                  </span>
+                </div>
+
+                <form onSubmit={handleBarcodeLookupSubmit} className="space-y-4">
+                  <div className="space-y-1.5 text-left">
+                    <label htmlFor="typed-barcode-input" className="text-xs text-slate-600 font-semibold">Enter Barcode EAN/UPC Number</label>
+                    <div className="relative">
+                      <input
+                        id="typed-barcode-input"
+                        type="text"
+                        required
+                        placeholder="e.g. 5449000000996"
+                        value={typedBarcode}
+                        onChange={(e) => setTypedBarcode(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm text-slate-800 focus:outline-none focus:border-emerald-500/50 font-mono"
+                      />
+                    </div>
+                    {barcodeError && (
+                      <p className="text-[10px] text-rose-500 font-medium">{barcodeError}</p>
+                    )}
+                  </div>
+
+                  {/* Quick-select test barcodes */}
+                  <div className="space-y-2 border-t border-slate-100 pt-3 text-left">
+                    <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400">
+                      Quick Test Demo Barcodes
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      {[
+                        { label: "Coca Cola Classic 🥤", code: "5449000000996" },
+                        { label: "Kraft Mac & Cheese 🧀", code: "0021000612239" },
+                        { label: "Oreo Original 🍪", code: "044000031226" },
+                        { label: "Diet Coke Can 🥤", code: "5449000133335" }
+                      ].map((item) => (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => setTypedBarcode(item.code)}
+                          className="p-2 rounded-lg border border-slate-100 bg-slate-50 hover:bg-emerald-50/20 hover:border-emerald-200 text-left transition-colors font-medium truncate"
+                        >
+                          <span className="block font-bold text-slate-700">{item.label}</span>
+                          <span className="font-mono text-slate-400 text-[8px]">{item.code}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={barcodeLoading}
+                    className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-600 transition-all shadow-sm flex items-center justify-center space-x-1.5 disabled:bg-slate-300"
+                  >
+                    <span>{barcodeLoading ? "Searching OpenFoodFacts..." : "Scan & Analyze Barcode"}</span>
                   </button>
                 </form>
               </GlassCard>
