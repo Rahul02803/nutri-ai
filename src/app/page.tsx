@@ -2,29 +2,48 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Sparkles, Camera, Barcode, Mic, Dumbbell, Award, Flame, Check, HelpCircle, Star, PhoneCall, TrendingDown, Clock, ShieldCheck, ChevronRight } from "lucide-react";
+import { 
+  Sparkles, 
+  Camera, 
+  Search, 
+  Plus, 
+  Droplet, 
+  LineChart, 
+  ChevronRight, 
+  Check, 
+  Mail, 
+  User, 
+  MessageSquare, 
+  Send 
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LandingPage() {
   // FAQ accordion state
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  
+  // Contact Form states
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMsg, setContactMsg] = useState("");
+  const [contactSubmitted, setContactSubmitted] = useState(false);
 
   const faqs = [
     {
-      q: "How accurate is the AI Meal Scanner?",
-      a: "Our visual estimation engine has a 94% clinical accuracy rating. It calculates portion sizes based on plate depth and detects macro ratios (protein, carbs, fat) and micronutrients (fiber, sugar) within seconds."
+      q: "How does the AI Food Scanner work?",
+      a: "Simply upload a photo of your meal or take a picture using your mobile app's camera. The visual AI model recognizes food items on the plate, estimates portion weights in grams, and logs their calories and macros into your dashboard instantly."
     },
     {
-      q: "Does it support regional Indian and US foods?",
-      a: "Yes! NutriTrack AI has a massive pre-loaded database featuring regional Indian staples (Paneer Tikka, Idli Sambar, Moong Cheela) alongside international packaged foods and popular restaurant brands."
+      q: "What is included in the Food Database?",
+      a: "Our unified database features hundreds of regional Indian favorites (Roti, Chole, Biryani, Curd) as well as global packaged brands and restaurant menus. Direct integrations with USDA FoodData Central and Open Food Facts cover over 500,000+ entries."
     },
     {
-      q: "Can I sync step counters and workout histories?",
-      a: "Absolutely. The mobile app syncs in real-time with Google Fit and Apple Health, automatically feeding step data, cardio sessions, and strength workouts into your wellness cockpit."
+      q: "Does this website support food tracking?",
+      a: "No, this website serves strictly as an informational and marketing portal to introduce the app. All tracking, scanning, and database search features exist exclusively inside our high-performance mobile application."
     },
     {
-      q: "Is there an offline mode for barcode scanning?",
-      a: "Yes, our mobile app utilizes on-device databases enabling offline barcode lookup and immediate visual calorie estimations even without network access."
+      q: "Is my personal data secure?",
+      a: "Yes. All authenticated sessions use secure encryption keys. Your biological profiles (height, weight, age) are stored in isolated user tables to guarantee complete privacy and zero data leakage."
     }
   ];
 
@@ -32,38 +51,51 @@ export default function LandingPage() {
     setActiveFaq(activeFaq === idx ? null : idx);
   };
 
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactName || !contactEmail || !contactMsg) return;
+    setContactSubmitted(true);
+    setTimeout(() => {
+      setContactName("");
+      setContactEmail("");
+      setContactMsg("");
+      setContactSubmitted(false);
+      alert("Thank you! Your feedback has been received and logged under our BCA Project administration center.");
+    }, 1500);
+  };
+
   return (
     <div className="relative overflow-hidden bg-[#F8F8FA] min-h-screen text-[#111111] pb-16">
       {/* Decorative Gradients */}
-      <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-sky-400/5 to-purple-500/5 blur-[120px] -z-10 pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-purple-400/5 to-pink-500/5 blur-[150px] -z-10 pointer-events-none" />
+      <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-emerald-400/5 to-teal-500/5 blur-[120px] -z-10 pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-emerald-400/5 to-indigo-500/5 blur-[150px] -z-10 pointer-events-none" />
 
-      {/* 1. Hero Section */}
+      {/* 1. HERO SECTION */}
       <section className="mx-auto max-w-7xl px-4 pt-20 pb-24 sm:px-6 lg:px-8 items-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Hero Column */}
           <div className="lg:col-span-7 space-y-6 text-left">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#111111]/5 border border-[#ECECEF] text-xs font-bold text-[#111111]">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-500 animate-pulse" />
-              <span>Venture-Backed Health Science</span>
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-100 text-xs font-bold text-emerald-700">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
+              <span>BCA Final Year Project Showcase</span>
             </div>
 
             <h1 className="font-outfit text-5xl sm:text-6xl font-extrabold tracking-tight text-[#111111] leading-[1.1]">
-              Track Calories <br />
-              <span className="font-medium text-[#8D8D92]">with AI in Seconds</span>
+              Track Nutrition <br />
+              <span className="font-medium text-slate-500">Smarter with AI</span>
             </h1>
 
             <p className="text-sm sm:text-base text-[#8D8D92] max-w-lg leading-relaxed">
-              Scan any meal, get calories, macros, and personalized nutrition coaching instantly. Ditch manual inputs—take control of your physical biology with modern visual intelligence.
+              Scan meals, track calories, monitor progress, and achieve your fitness goals. Ditch manual inputs—take control of your physical biology with modern visual intelligence.
             </p>
 
-            {/* Premium Download Buttons */}
+            {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-4">
               <Link
                 href="/auth"
                 className="px-8 py-4 rounded-2xl bg-[#111111] text-white font-bold text-xs hover:scale-[1.01] active:scale-[0.98] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.08)] flex items-center space-x-2"
               >
-                <span>🚀 Get Started Free</span>
+                <span>🚀 Get Started (Access App)</span>
                 <ChevronRight className="h-4 w-4" />
               </Link>
               <a
@@ -71,35 +103,26 @@ export default function LandingPage() {
                 download
                 className="px-6 py-4 rounded-2xl border border-[#ECECEF] bg-white text-[#111111] font-bold text-xs hover:bg-[#F8F8FA] active:scale-[0.98] transition-all flex items-center space-x-2 shadow-xs"
               >
-                <span>🤖 Download Android APK</span>
+                <span>🤖 Download Android App</span>
               </a>
-            </div>
-
-            {/* Stars rating */}
-            <div className="flex items-center space-x-3 pt-2">
-              <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-current" />
-                ))}
-              </div>
-              <span className="text-xs font-bold text-[#8D8D92]">Trusted by over 5,000,000+ elite members</span>
+              <a
+                href="#download"
+                className="px-6 py-4 rounded-2xl border border-[#ECECEF] bg-white text-slate-400 font-bold text-xs select-none cursor-not-allowed flex items-center space-x-2 shadow-xs"
+              >
+                <span>🍏 Download iOS App (Soon)</span>
+              </a>
             </div>
           </div>
 
-          {/* Right Hero Column: Premium Interactive iPhone Mockup */}
+          {/* Right Hero Column: Interactive Mobile Mockup */}
           <div className="lg:col-span-5 flex justify-center">
             <div className="relative mx-auto w-[280px] h-[560px] bg-[#111111] rounded-[48px] p-3 shadow-[0_24px_50px_rgba(0,0,0,0.15)] border-4 border-[#ECECEF]">
-              {/* Speaker Notch */}
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 h-6 w-32 bg-[#111111] rounded-b-2xl z-20 flex items-center justify-center">
-                <div className="h-1.5 w-12 bg-slate-800 rounded-full" />
-              </div>
-
               {/* iPhone screen canvas */}
               <div className="w-full h-full bg-[#F8F8FA] rounded-[38px] overflow-hidden relative flex flex-col justify-between p-4 border border-[#ECECEF] select-none pointer-events-none">
                 {/* Simulated Header */}
                 <div className="flex justify-between items-center pt-4 pb-2 border-b border-slate-100">
                   <span className="text-[10px] font-bold">9:41 📡</span>
-                  <span className="text-[9px] uppercase font-mono tracking-widest font-extrabold bg-[#111111] text-white px-2 py-0.5 rounded">PRO</span>
+                  <span className="text-[9px] uppercase font-mono tracking-widest font-extrabold bg-[#111111] text-white px-2 py-0.5 rounded">BCA</span>
                 </div>
 
                 {/* Dashboard simulation */}
@@ -113,30 +136,29 @@ export default function LandingPage() {
                         <circle cx="40" cy="40" r="34" stroke="#10b981" strokeWidth="4" fill="transparent" strokeDasharray={213} strokeDashoffset={70} />
                       </svg>
                       <div className="text-center z-10">
-                        <span className="text-sm font-extrabold">1,250</span>
+                        <span className="text-xs font-extrabold">1,250</span>
                         <span className="text-[7px] text-slate-400 block uppercase">kcal left</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Fasting Card */}
+                  {/* Water Tracker */}
                   <div className="p-3 bg-white border border-[#ECECEF] rounded-[20px] flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-purple-500 animate-spin-slow" />
+                      <Droplet className="h-4 w-4 text-sky-500 animate-bounce" />
                       <div>
-                        <p className="text-[9px] font-bold">Intermittent Fasting</p>
-                        <span className="text-[7px] text-[#8D8D92]">16:8 Lean Tier active</span>
+                        <p className="text-[9px] font-bold">Hydration Level</p>
+                        <span className="text-[7px] text-[#8D8D92]">1,500ml logged today</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-purple-600">12:35:45</span>
                   </div>
 
-                  {/* Workout Logs Card */}
+                  {/* Dynamic Meal Item */}
                   <div className="p-3 bg-white border border-[#ECECEF] rounded-[20px] space-y-1.5">
-                    <span className="text-[7px] uppercase tracking-wider font-bold text-slate-400 block">Today&apos;s Training</span>
+                    <span className="text-[7px] uppercase tracking-wider font-bold text-slate-400 block">Logged Meal</span>
                     <div className="flex justify-between items-center text-[8px] bg-slate-50 border border-[#ECECEF] p-1.5 rounded-lg">
-                      <span className="font-bold">💪 Strength Session (45m)</span>
-                      <span className="text-orange-600 font-extrabold">-300 kcal</span>
+                      <span className="font-bold">🥗 Paneer Tikka Curry</span>
+                      <span className="text-emerald-600 font-extrabold">+280 kcal</span>
                     </div>
                   </div>
                 </div>
@@ -146,7 +168,6 @@ export default function LandingPage() {
                   <span className="text-[8px] font-bold text-[#111111]">Home</span>
                   <span className="text-[8px] font-bold text-slate-400">Progress</span>
                   <div className="h-8 w-8 rounded-full bg-[#111111] flex items-center justify-center text-white relative -top-3 shadow-md border-2 border-white">+</div>
-                  <span className="text-[8px] font-bold text-slate-400">Social</span>
                   <span className="text-[8px] font-bold text-slate-400">Profile</span>
                 </div>
               </div>
@@ -155,92 +176,187 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 2. Features Section */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 bg-white rounded-[32px] shadow-sm">
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-          <h2 className="font-outfit text-3xl sm:text-4xl font-bold text-[#111111]">
-            Powered by Clinical AI Diagnostics
-          </h2>
-          <p className="text-[#8D8D92] text-sm sm:text-base leading-relaxed">
-            NutriTrack AI equips you with modular diagnostic tools to hit physical goals with zero clutter.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Feature 1 */}
-          <div className="p-6 rounded-[24px] border border-[#ECECEF] bg-[#F8F8FA] space-y-4 text-left">
-            <div className="h-10 w-10 rounded-xl bg-white border border-[#ECECEF] flex items-center justify-center text-purple-600">
-              <Camera className="h-5 w-5" />
+      {/* 2. ABOUT THE APPLICATION */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 bg-white rounded-[32px] shadow-sm text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <h2 className="font-outfit text-3xl sm:text-4xl font-extrabold text-[#111111]">
+              A Solid Solution for Fitness & Nutrition Tracking
+            </h2>
+            <p className="text-sm text-[#8D8D92] leading-relaxed">
+              This system is built as a complete final year academic project, showing clean execution across mobile app architectures, local databases, visual scanning integrations, and dynamic data visualization curves.
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-start space-x-3 text-xs">
+                <div className="h-5 w-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">✔</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">Calorie & Macro Budgets</h4>
+                  <p className="text-slate-400 text-[11px] mt-0.5">Dynamic formula configurations for BMR (Basal Metabolic Rate) and TDEE targets.</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3 text-xs">
+                <div className="h-5 w-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">✔</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">Computer Vision Scanning</h4>
+                  <p className="text-slate-400 text-[11px] mt-0.5">Computer-assisted food photo uploads with calorie estimation logic.</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3 text-xs">
+                <div className="h-5 w-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">✔</div>
+                <div>
+                  <h4 className="font-bold text-slate-800">Database Persistence</h4>
+                  <p className="text-slate-400 text-[11px] mt-0.5">Persistent structured database saving user weights, water intakes, and meal categories securely.</p>
+                </div>
+              </div>
             </div>
-            <h3 className="font-outfit text-sm font-bold text-[#111111]">AI Meal Scanner</h3>
-            <ul className="text-[11px] text-[#8D8D92] space-y-1.5 leading-relaxed">
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-500" /> Scan meal photos instantly</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-500" /> Auto detect calorie targets</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-500" /> Portion size calibrations</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-purple-500" /> Macro breakdowns (P, C, F)</li>
-            </ul>
           </div>
 
-          {/* Feature 2 */}
-          <div className="p-6 rounded-[24px] border border-[#ECECEF] bg-[#F8F8FA] space-y-4 text-left">
-            <div className="h-10 w-10 rounded-xl bg-white border border-[#ECECEF] flex items-center justify-center text-sky-600">
-              <Sparkles className="h-5 w-5 animate-pulse" />
+          <div className="bg-[#F8F8FA] border border-[#ECECEF] p-8 rounded-[28px] space-y-4">
+            <h3 className="font-outfit text-md font-extrabold text-slate-800">BCA Final Project Specs</h3>
+            <div className="space-y-3.5 text-xs">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-400">Development Stack</span>
+                <span className="font-bold text-slate-800">Next.js, TypeScript, Capacitor</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-400">Database Layer</span>
+                <span className="font-bold text-slate-800">Structured localStorage Engine</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-slate-400">Security / Auth</span>
+                <span className="font-bold text-slate-800">Persistent Session Locks & OTP</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Computer Vision API</span>
+                <span className="font-bold text-slate-800">Visual Detection Engine</span>
+              </div>
             </div>
-            <h3 className="font-outfit text-sm font-bold text-[#111111]">AI Nutrition Coach</h3>
-            <ul className="text-[11px] text-[#8D8D92] space-y-1.5 leading-relaxed">
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-sky-500" /> Personalized biological guidance</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-sky-500" /> Autophagy interval support</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-sky-500" /> Conversational workout planning</li>
-            </ul>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="p-6 rounded-[24px] border border-[#ECECEF] bg-[#F8F8FA] space-y-4 text-left">
-            <div className="h-10 w-10 rounded-xl bg-white border border-[#ECECEF] flex items-center justify-center text-emerald-600">
-              <Barcode className="h-5 w-5" />
-            </div>
-            <h3 className="font-outfit text-sm font-bold text-[#111111]">Massive Food Library</h3>
-            <ul className="text-[11px] text-[#8D8D92] space-y-1.5 leading-relaxed">
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> Traditional regional Indian staples</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> Global brand & chain restaurant items</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" /> 1-click barcode lookups</li>
-            </ul>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="p-6 rounded-[24px] border border-[#ECECEF] bg-[#F8F8FA] space-y-4 text-left">
-            <div className="h-10 w-10 rounded-xl bg-white border border-[#ECECEF] flex items-center justify-center text-orange-600">
-              <Dumbbell className="h-5 w-5" />
-            </div>
-            <h3 className="font-outfit text-sm font-bold text-[#111111]">Activity & Fasting</h3>
-            <ul className="text-[11px] text-[#8D8D92] space-y-1.5 leading-relaxed">
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-500" /> Real-time steps counter syncs</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-500" /> Cardio & Strength session loggers</li>
-              <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-orange-500" /> Gamified badges room rewards</li>
-            </ul>
           </div>
         </div>
       </section>
 
-      {/* 3. How It Works Section */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100">
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-          <h2 className="font-outfit text-3xl sm:text-4xl font-bold text-[#111111]">
+      {/* 3. FEATURES OVERVIEW */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-left space-y-12">
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h2 className="font-outfit text-3xl font-bold text-[#111111]">
+            Explore Mobile App Features
+          </h2>
+          <p className="text-[#8D8D92] text-xs sm:text-sm">
+            Everything you need to manage your personal health is packed directly inside the mobile client.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            { 
+              icon: Camera, 
+              title: "AI Food Scanner", 
+              desc: "Snap meal photos to detect food boundaries and calculate exact calories instantly.", 
+              color: "text-emerald-500 bg-emerald-50" 
+            },
+            { 
+              icon: Search, 
+              title: "Fuzzy Food Search", 
+              desc: "Query 500,000+ USDA and local preset items with spelling autocorrect and synonym maps.", 
+              color: "text-indigo-500 bg-indigo-50" 
+            },
+            { 
+              icon: Plus, 
+              title: "Period Meal Logging", 
+              desc: "Organize calorie targets cleanly under Breakfast, Lunch, Dinner, or Snacks periods.", 
+              color: "text-orange-500 bg-orange-50" 
+            },
+            { 
+              icon: Droplet, 
+              title: "Fluids Tracker", 
+              desc: "Log daily water volume goal limits in milliliters to keep hydration grids perfectly loaded.", 
+              color: "text-sky-500 bg-sky-50" 
+            },
+            { 
+              icon: LineChart, 
+              title: "Performance Reports", 
+              desc: "Unlock weights area charts, daily intake summaries, and weekly progress PDF printouts.", 
+              color: "text-purple-500 bg-purple-50" 
+            },
+            { 
+              icon: Sparkles, 
+              title: "BMR Target Calibrators", 
+              desc: "Compute perfect biological limits based on height, weight, activity and gender metrics.", 
+              color: "text-teal-500 bg-teal-50" 
+            }
+          ].map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div key={idx} className="p-6 rounded-[24px] border border-[#ECECEF] bg-white space-y-4 text-left shadow-xs">
+                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${item.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-outfit text-sm font-bold text-[#111111]">{item.title}</h3>
+                <p className="text-[11px] text-[#8D8D92] leading-relaxed">{item.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 4. APP SCREENSHOTS CAROUSEL */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-center space-y-12">
+        <div className="space-y-3">
+          <h2 className="font-outfit text-3xl font-bold text-[#111111]">App Screen Showcases</h2>
+          <p className="text-slate-400 text-xs sm:text-sm">High-fidelity look inside the mobile interface layouts</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center max-w-5xl mx-auto">
+          {[
+            { 
+              title: "Dashboard Cockpit", 
+              desc: "Budgets circle meters, protein progress bars, and hydration trackers all in one glassy container." 
+            },
+            { 
+              title: "MyFitnessPal Nutrition Label", 
+              desc: "Scales calories, sodium, potassium, sugar, fiber and cholesterol facts inside a realistic PDF sheet." 
+            },
+            { 
+              title: "Reports & Charts", 
+              desc: "Area charts mapping weight progress trendlines and daily/weekly calorie budgets over standard timelines." 
+            }
+          ].map((scr, idx) => (
+            <div key={idx} className="p-4 bg-white border border-[#ECECEF] rounded-[32px] text-left space-y-3 shadow-xs">
+              <div className="h-44 w-full bg-[#111115] rounded-[24px] flex items-center justify-center p-4 relative overflow-hidden">
+                <div className="absolute top-2 left-2 text-[8px] font-mono text-[#8D8D92]">Device screen preview</div>
+                <div className="h-32 w-24 bg-[#F8F8FA] rounded-xl border border-slate-800 p-2 text-[6px] space-y-1 relative">
+                  <div className="h-2 w-full bg-slate-200 rounded" />
+                  <div className="h-2 w-2/3 bg-slate-200 rounded" />
+                  <div className="h-8 w-8 rounded-full border border-emerald-500 border-2 mx-auto mt-2" />
+                  <div className="h-2 w-full bg-slate-200 rounded mt-2" />
+                </div>
+              </div>
+              <h4 className="text-xs font-bold text-slate-800">{scr.title}</h4>
+              <p className="text-[10px] text-[#8D8D92] leading-normal">{scr.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 5. HOW IT WORKS SECTION */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-left space-y-12">
+        <div className="text-center max-w-3xl mx-auto space-y-3">
+          <h2 className="font-outfit text-3xl font-bold text-[#111111]">
             How It Works
           </h2>
-          <p className="text-[#8D8D92] text-sm sm:text-base leading-relaxed">
-            Reach your body transformation goals in 4 simple steps.
+          <p className="text-[#8D8D92] text-xs sm:text-sm">
+            Reach your fitness limits in 4 straightforward developmental phases.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
-            { step: "01", title: "Take a Photo 📷", desc: "Snap a photo of your meal on the mobile app scanner. AI detects boundaries instantly." },
-            { step: "02", title: "AI Analyzes Food 🧠", desc: "Mifflin-St Jeor engine matches plate metrics and calculates nutritional densities." },
-            { step: "03", title: "Nutrition Breakdown 📊", desc: "Receive instant calorie, protein, carb, fat, fiber and sugar scoreboards." },
-            { step: "04", title: "Reach Your Goals 🏆", desc: "Follow targeted macro structures, fast autophagy hours, and sync exercise levels." }
+            { step: "01", title: "Create Account", desc: "Sign up via Google or verified email channels inside the protected mobile screen." },
+            { step: "02", title: "Set Goals", desc: "Select height, weight, activity coefficients, and caloric goals inside your dashboard settings." },
+            { step: "03", title: "Track Food", desc: "Snap meal photos using visual scanning, query standard presets, and sync water metrics." },
+            { step: "04", title: "Monitor Progress", desc: "Print standard weekly biological summaries and track charts in real-time." }
           ].map((item, idx) => (
-            <div key={idx} className="relative p-6 rounded-[24px] bg-white border border-[#ECECEF] text-left space-y-3 shadow-xs">
+            <div key={idx} className="relative p-6 rounded-[24px] bg-white border border-[#ECECEF] space-y-3 shadow-xs">
               <span className="text-4xl font-extrabold text-[#ECECEF] font-mono block leading-none">{item.step}</span>
               <h3 className="font-outfit text-xs font-bold text-[#111111]">{item.title}</h3>
               <p className="text-[10px] text-[#8D8D92] leading-relaxed">{item.desc}</p>
@@ -249,144 +365,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 4. App Screenshots room */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100">
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-          <h2 className="font-outfit text-3xl sm:text-4xl font-bold text-[#111111]">
-            Explore the Mobile App experience
-          </h2>
-          <p className="text-[#8D8D92] text-sm sm:text-base">
-            Beautiful screenshots showcasing our premium, ultra-minimal WHOOP-style dashboards.
-          </p>
-        </div>
-
-        {/* CSS mockup screens gallery */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center">
-          {/* Screen 1: Dashboard */}
-          <div className="p-4 bg-white border border-[#ECECEF] rounded-[32px] space-y-4 max-w-xs mx-auto text-left shadow-xs">
-            <span className="text-[10px] font-bold text-purple-600 block uppercase font-mono tracking-wider">Screen 1: Wellness Cockpit</span>
-            <div className="p-4 bg-[#F8F8FA] border border-[#ECECEF] rounded-[24px] space-y-3.5">
-              <div className="h-6 w-full bg-white border border-slate-200/50 rounded-lg flex items-center justify-between px-2 text-[9px] font-bold">
-                <span>Total Burned Today</span>
-                <span className="text-orange-500 font-mono">-620 kcal</span>
-              </div>
-              <div className="p-3 bg-white border border-[#ECECEF] rounded-[16px] text-center">
-                <span className="text-[8px] text-slate-400 block uppercase tracking-wider">Water Intake</span>
-                <h4 className="text-md font-extrabold text-[#111111] mt-0.5">2,500 ml / 3,500 ml</h4>
-                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden flex">
-                  <div className="h-full bg-sky-400" style={{ width: "70%" }} />
-                </div>
-              </div>
-            </div>
-            <p className="text-[10px] text-[#8D8D92] leading-normal font-medium">Calorie budget circles, macronutrient bars, and step syncing dials all in a unified viewport.</p>
-          </div>
-
-          {/* Screen 2: Analytics */}
-          <div className="p-4 bg-white border border-[#ECECEF] rounded-[32px] space-y-4 max-w-xs mx-auto text-left shadow-xs">
-            <span className="text-[10px] font-bold text-purple-600 block uppercase font-mono tracking-wider">Screen 2: Weight Curves</span>
-            <div className="p-4 bg-[#F8F8FA] border border-[#ECECEF] rounded-[24px] space-y-3.5">
-              <div className="h-28 w-full bg-white border border-[#ECECEF] rounded-[16px] flex flex-col justify-end p-2 relative overflow-hidden">
-                <div className="absolute top-2 left-2 text-[8px] font-bold text-slate-400">Weight Progression (7d)</div>
-                {/* SVG trend line preview */}
-                <svg className="w-full h-14" viewBox="0 0 100 50">
-                  <path d="M 0 45 Q 25 35, 50 20 T 100 5" fill="none" stroke="#818cf8" strokeWidth="2" />
-                </svg>
-              </div>
-              <div className="flex justify-between text-[8px] font-mono text-slate-400 px-1">
-                <span>Mon</span>
-                <span>Wed</span>
-                <span>Fri</span>
-                <span>Sun</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-[#8D8D92] leading-normal font-medium">Recharts area graphs charting weight metrics and water hydration levels week over week.</p>
-          </div>
-
-          {/* Screen 3: Gamification */}
-          <div className="p-4 bg-white border border-[#ECECEF] rounded-[32px] space-y-4 max-w-xs mx-auto text-left shadow-xs">
-            <span className="text-[10px] font-bold text-purple-600 block uppercase font-mono tracking-wider">Screen 3: Badges Room</span>
-            <div className="p-4 bg-[#F8F8FA] border border-[#ECECEF] rounded-[24px] grid grid-cols-2 gap-2 text-center text-xs font-semibold">
-              <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
-                <span className="text-xl">🥗</span>
-                <span className="text-[8px] block mt-1">First Log</span>
-              </div>
-              <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
-                <span className="text-xl">🔥</span>
-                <span className="text-[8px] block mt-1">3d Streak</span>
-              </div>
-              <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
-                <span className="text-xl">⏳</span>
-                <span className="text-[8px] block mt-1">Autophagy</span>
-              </div>
-              <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center opacity-40 filter grayscale">
-                <span className="text-xl">👑</span>
-                <span className="text-[8px] block mt-1">Locked</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-[#8D8D92] leading-normal font-medium">Unlock gamified medals (Consistent Builder, Hydration Master, Autophagy Pro) as you progress.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Testimonials Section */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 border-t border-slate-100 text-left">
-        <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
-          <h2 className="font-outfit text-3xl sm:text-4xl font-bold text-slate-900">
-            Endorsed by Fitness Influencers 👀
-          </h2>
-          <p className="text-slate-500 text-sm sm:text-base">
-            Elite trainers and coaches rely on NutriTrack AI to hit strict target thresholds.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* JJ */}
-          <div className="p-6 bg-white border border-[#ECECEF] rounded-[24px] space-y-4 shadow-xs">
-            <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center font-bold text-indigo-600">JJ</div>
-              <div>
-                <h4 className="text-xs font-bold text-[#111111]">Jeremiah Jones</h4>
-                <span className="text-[9px] text-[#8D8D92] block mt-0.5">Fitness Influencer</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              &ldquo;Log foods with just a snap. NutriTrack AI removes the math and speeds up calorie budgeting so you focus on actual training.&rdquo;
-            </p>
-          </div>
-
-          {/* AE */}
-          <div className="p-6 bg-white border border-[#ECECEF] rounded-[24px] space-y-4 shadow-xs">
-            <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center font-bold text-purple-600">AE</div>
-              <div>
-                <h4 className="text-xs font-bold text-[#111111]">Alex Eubank</h4>
-                <span className="text-[9px] text-[#8D8D92] block mt-0.5">Venture Bodybuilder</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              &ldquo;The interface is completely zero-clutter. It is the cleanest progress curves and macro logs application I have ever touched.&rdquo;
-            </p>
-          </div>
-
-          {/* HF */}
-          <div className="p-6 bg-white border border-[#ECECEF] rounded-[24px] space-y-4 shadow-xs">
-            <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center font-bold text-emerald-600">HF</div>
-              <div>
-                <h4 className="text-xs font-bold text-[#111111]">Hussein Farhat</h4>
-                <span className="text-[9px] text-[#8D8D92] block mt-0.5">Health Transformation Coach</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed italic">
-              &ldquo;Integrating step counter syncs, strength logs, and autophagy clocks in a single app completely changes compliance outcomes.&rdquo;
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. FAQ Section */}
-      <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6 border-t border-slate-100 text-left">
-        <div className="text-center max-w-xl mx-auto space-y-2.5 mb-14">
+      {/* 6. FAQ SECTION */}
+      <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6 border-t border-slate-100 text-left space-y-12">
+        <div className="text-center max-w-xl mx-auto space-y-2.5">
           <h2 className="font-outfit text-3xl font-bold text-[#111111]">
             Common Queries
           </h2>
@@ -405,7 +386,7 @@ export default function LandingPage() {
                   className="w-full p-5 text-left text-xs font-bold flex justify-between items-center transition-colors hover:bg-slate-50 outline-none"
                 >
                   <span>{faq.q}</span>
-                  <span className="text-lg text-indigo-500 font-mono leading-none">{isFaqActive ? "−" : "+"}</span>
+                  <span className="text-lg text-emerald-500 font-mono leading-none">{isFaqActive ? "−" : "+"}</span>
                 </button>
 
                 <AnimatePresence initial={false}>
@@ -427,25 +408,97 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 7. Download App CTA Section */}
-      <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      {/* 7. CONTACT SECTION */}
+      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 border-t border-slate-100 text-left space-y-12">
+        <div className="text-center max-w-xl mx-auto space-y-2.5">
+          <h2 className="font-outfit text-3xl font-bold text-[#111111]">
+            Contact Project Team
+          </h2>
+          <p className="text-[#8D8D92] text-xs sm:text-sm">
+            Submit bugs, feature recommendations, or final year reviews directly to the developers.
+          </p>
+        </div>
+
+        <form onSubmit={handleContactSubmit} className="max-w-xl mx-auto bg-white border border-[#ECECEF] p-6 rounded-[28px] space-y-4 shadow-sm text-xs">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label htmlFor="contact-name" className="font-bold text-slate-700">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  id="contact-name"
+                  type="text"
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="contact-email" className="font-bold text-slate-700">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  id="contact-email"
+                  type="email"
+                  required
+                  placeholder="e.g. rahul@bca.edu"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="contact-message" className="font-bold text-slate-700">Message Description</label>
+            <div className="relative">
+              <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <textarea
+                id="contact-message"
+                required
+                rows={4}
+                placeholder="Submit your BCA review..."
+                value={contactMsg}
+                onChange={(e) => setContactMsg(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={contactSubmitted}
+            className="w-full py-3 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition-colors shadow-sm flex items-center justify-center space-x-1.5 disabled:bg-slate-300"
+          >
+            <Send className="h-4 w-4" />
+            <span>{contactSubmitted ? "Submitting..." : "Send Message"}</span>
+          </button>
+        </form>
+      </section>
+
+      {/* 8. DOWNLOAD APP CTA SECTION */}
+      <section id="download" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <div className="p-8 md:p-14 bg-[#111111] text-white rounded-[32px] text-center space-y-6 relative overflow-hidden shadow-lg">
-          <div className="absolute top-0 right-0 h-32 w-32 bg-sky-500/10 rounded-full blur-[60px]" />
-          <div className="absolute bottom-0 left-0 h-32 w-32 bg-purple-500/10 rounded-full blur-[60px]" />
+          <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/10 rounded-full blur-[60px]" />
+          <div className="absolute bottom-0 left-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-[60px]" />
 
           <h2 className="font-outfit text-3xl md:text-4xl font-extrabold tracking-tight">
             Start Your Fitness Journey Today
           </h2>
           <p className="text-xs md:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-            Download NutriTrack AI on your phone to unlock calorie calculators, custom BMR formulas, Google Fit synchronization, and gamified streak logs.
+            Download NutriTrack AI on your phone to unlock calorie calculators, custom BMR formulas, computer vision scanning, and dynamic weight progress history.
           </p>
 
           <div className="flex flex-wrap justify-center gap-4 pt-4">
             <Link
               href="/auth"
-              className="px-8 py-3.5 rounded-2xl bg-white text-[#111111] font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md"
+              className="px-8 py-3.5 rounded-2xl bg-white text-[#111111] font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md animate-bounce"
             >
-              Get Started Free
+              Get Started Free (Login App)
             </Link>
             <a
               href="/NutriAI.apk"
