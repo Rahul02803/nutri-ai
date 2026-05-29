@@ -108,7 +108,7 @@ function AuthPageContent() {
       setCountdown(60);
       setCanResend(false);
       setError(null);
-      setInfo("OTP sent to +91 " + cleanPhone);
+      setInfo("OTP sent! Real SMS delivered if within Textbelt limits; backup code is in simulated SMS banner.");
       setFlowState("phone_otp");
       setTimeout(() => otpRefs.current[0]?.focus(), 250);
     } else {
