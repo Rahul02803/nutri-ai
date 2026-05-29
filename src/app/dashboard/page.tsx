@@ -1495,12 +1495,12 @@ export default function DashboardPage() {
       {/* Floating Portion Customizer Modal */}
       <AnimatePresence>
         {showPortionDialog && selectedFoodForLog && (
-          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md"
+              className="w-full max-w-lg my-8"
             >
               <GlassCard glow glowColor="emerald" className="p-6 space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -1521,20 +1521,6 @@ export default function DashboardPage() {
                 </div>
 
                 <form onSubmit={handleConfirmPortionLog} className="space-y-4">
-                  {/* Base food details */}
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-500 space-y-1 text-left">
-                    <div className="flex justify-between">
-                      <span>Base Serving Size:</span>
-                      <span className="font-bold text-slate-700">{selectedFoodForLog.servingSize}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Macros (1x Portion):</span>
-                      <span className="font-bold text-slate-700 text-right">
-                        {selectedFoodForLog.calories} kcal • P: {selectedFoodForLog.protein}g | C: {selectedFoodForLog.carbs}g | F: {selectedFoodForLog.fat}g
-                      </span>
-                    </div>
-                  </div>
-
                   {/* Weight adjust fields */}
                   {getBaseWeightAndUnit(selectedFoodForLog.servingSize) ? (
                     <div className="grid grid-cols-2 gap-3 text-left">
@@ -1582,18 +1568,70 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  {/* Real-time preview */}
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 text-center space-y-1">
-                    <p className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Scaled Intake Preview</p>
-                    <p className="text-xl font-bold font-outfit text-emerald-600">
-                      {Math.round(selectedFoodForLog.calories * (parseFloat(loggedServings) || 1))} kcal
-                    </p>
-                    <div className="flex justify-center gap-3 text-[10px] text-slate-500 font-mono">
-                      <span>P: {Math.round(selectedFoodForLog.protein * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
-                      <span>•</span>
-                      <span>C: {Math.round(selectedFoodForLog.carbs * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
-                      <span>•</span>
-                      <span>F: {Math.round(selectedFoodForLog.fat * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                  {/* PREMIUM MYFITNESSPAL NUTRITION FACTS LABEL */}
+                  <div className="border-4 border-slate-900 bg-white p-4 font-mono text-slate-900 text-left text-xs leading-tight">
+                    <h2 className="text-2xl font-black uppercase tracking-tight text-center leading-none border-b-8 border-slate-900 pb-1 font-outfit">
+                      Nutrition Facts
+                    </h2>
+                    <div className="flex justify-between border-b border-slate-900 py-1 text-xs">
+                      <span>Serving Size</span>
+                      <span className="font-bold">
+                        {loggedGrams
+                          ? `${loggedGrams}${getBaseWeightAndUnit(selectedFoodForLog.servingSize)?.unit || "g"}`
+                          : selectedFoodForLog.servingSize}{" "}
+                        ({(parseFloat(loggedServings) || 1).toFixed(1)}x base serving)
+                      </span>
+                    </div>
+
+                    <div className="border-b-4 border-slate-900 py-1 text-sm font-bold flex justify-between items-baseline">
+                      <span className="text-base font-extrabold uppercase">Calories</span>
+                      <span className="text-2xl font-black">
+                        {Math.round(selectedFoodForLog.calories * (parseFloat(loggedServings) || 1))}
+                      </span>
+                    </div>
+
+                    {/* Macronutrients section */}
+                    <div className="border-b border-slate-900 py-1 font-bold flex justify-between">
+                      <span>Total Fat</span>
+                      <span>{Math.round(selectedFoodForLog.fat * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                    </div>
+                    <div className="border-b border-slate-900 py-1 font-bold flex justify-between">
+                      <span>Total Carbohydrate</span>
+                      <span>{Math.round(selectedFoodForLog.carbs * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                    </div>
+                    <div className="border-b border-slate-900 pl-4 py-1 flex justify-between">
+                      <span>Dietary Fiber</span>
+                      <span>{Math.round((selectedFoodForLog.fiber || 0) * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                    </div>
+                    <div className="border-b border-slate-900 pl-4 py-1 flex justify-between">
+                      <span>Total Sugars</span>
+                      <span>{Math.round((selectedFoodForLog.sugar || 0) * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                    </div>
+                    <div className="border-b-4 border-slate-900 py-1 font-bold flex justify-between">
+                      <span>Protein</span>
+                      <span>{Math.round(selectedFoodForLog.protein * (parseFloat(loggedServings) || 1) * 10) / 10}g</span>
+                    </div>
+
+                    {/* Micronutrients section */}
+                    <div className="border-b border-slate-300 py-1 flex justify-between text-[11px]">
+                      <span>Cholesterol</span>
+                      <span>{Math.round((selectedFoodForLog.cholesterol || 0) * (parseFloat(loggedServings) || 1))}mg</span>
+                    </div>
+                    <div className="border-b border-slate-300 py-1 flex justify-between text-[11px]">
+                      <span>Sodium</span>
+                      <span>{Math.round((selectedFoodForLog.sodium || 0) * (parseFloat(loggedServings) || 1))}mg</span>
+                    </div>
+                    <div className="border-b border-slate-300 py-1 flex justify-between text-[11px]">
+                      <span>Potassium</span>
+                      <span>{Math.round((selectedFoodForLog.potassium || 0) * (parseFloat(loggedServings) || 1))}mg</span>
+                    </div>
+                    <div className="border-b border-slate-300 py-1 flex justify-between text-[11px]">
+                      <span>Calcium</span>
+                      <span>{Math.round((selectedFoodForLog.calcium || 0) * (parseFloat(loggedServings) || 1))}mg</span>
+                    </div>
+                    <div className="py-1 flex justify-between text-[11px]">
+                      <span>Iron</span>
+                      <span>{Math.round((selectedFoodForLog.iron || 0) * (parseFloat(loggedServings) || 1) * 10) / 10}mg</span>
                     </div>
                   </div>
 
@@ -1721,6 +1759,103 @@ export default function DashboardPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* AI DATABASE OPTIMIZATION & VERIFICATION SYSTEM */}
+      <GlassCard glow glowColor="emerald" className="p-6 md:p-8 text-left mt-8 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-4 gap-2">
+          <div className="space-y-1">
+            <h3 className="font-outfit font-extrabold text-slate-800 text-lg flex items-center gap-1.5">
+              <Brain className="h-5 w-5 text-emerald-500" /> AI Database Enhancement Center
+            </h3>
+            <p className="text-xs text-slate-400">Smart ranking weights, synonyms control matrix, and review pipelines</p>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider font-mono text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
+            Active: 500,000+ seeds indexed
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Synonym Expansion Dictionary */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <span className="text-[10px] font-bold uppercase font-mono tracking-wider text-slate-400 block">
+              Active Synonym Map (Cal AI Equivalence)
+            </span>
+            <div className="space-y-2 text-xs">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { key: "Dahi / Yogurt", val: "Curd" },
+                  { key: "Paneer", val: "Cottage Cheese" },
+                  { key: "Roti / Chapati", val: "Phulka" },
+                  { key: "Fries", val: "French Fries" },
+                  { key: "Soda", val: "Soft Drink / Coke" }
+                ].map((item, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 bg-white border border-slate-200 rounded-lg font-mono text-[10px] text-slate-600"
+                  >
+                    {item.key} ⇄ {item.val}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal">
+                AI dynamically maps equivalent terms in English and Hindi to guarantee accurate query matches automatically.
+              </p>
+            </div>
+          </div>
+
+          {/* Fuzzy Levenshtein autocorrect widget */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <span className="text-[10px] font-bold uppercase font-mono tracking-wider text-slate-400 block">
+              Fuzzy Spelling Correction Engine
+            </span>
+            <div className="space-y-2 text-xs font-mono">
+              <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-rose-500 font-bold">Typed: "Panner Butter"</span>
+                  <span className="text-emerald-600 font-bold">→ Match: "Paneer Butter Masala"</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-rose-500 font-bold">Typed: "Amull Dahi"</span>
+                  <span className="text-emerald-600 font-bold">→ Match: "Amul Curd"</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-rose-500 font-bold">Typed: "Protien whey"</span>
+                  <span className="text-emerald-600 font-bold">→ Match: "Whey Protein Isolate"</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-sans leading-normal">
+                Calculates Levenshtein edit distance in real time to correct spelling typos and deliver results in under 300ms.
+              </p>
+            </div>
+          </div>
+
+          {/* Duplicate protection & ranking */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-3">
+            <span className="text-[10px] font-bold uppercase font-mono tracking-wider text-slate-400 block">
+              Smart Ranking Priorities
+            </span>
+            <div className="space-y-2.5 text-xs text-slate-600">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span>1. Exact Match Boost</span>
+                  <span className="text-emerald-600">+150 Score</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span>2. Verified Catalog Filter</span>
+                  <span className="text-emerald-600">20% Multiplier</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span>3. Popularity & Frequently Logged</span>
+                  <span className="text-emerald-600">Up to +50% Boost</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal">
+                Prioritizes locally verified high-popularity entries like "Amul Paneer" over unverified crowdsourced ingredients.
+              </p>
+            </div>
+          </div>
+        </div>
+      </GlassCard>
 
     </div>
   );
