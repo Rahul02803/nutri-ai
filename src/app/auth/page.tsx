@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Mail, User as UserIcon, Sparkles, Phone,
-  ArrowRight, ArrowLeft, ShieldCheck, CheckCircle
+  ArrowRight, ArrowLeft, ShieldCheck, CheckCircle, Flame, Camera, Scale, Apple, ChevronRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,26 +13,20 @@ type FlowState = "welcome" | "method" | "google_picker" | "phone_entry" | "phone
 
 function AuthPageContent() {
   const {
-    user, loading, pendingOtp, pendingEmailOtp,
-    loginWithGoogle,
-    sendOtp, verifyOtp,
-    sendEmailOtp, verifyEmailOtp
+    user, loading, pendingOtp, loginWithGoogle,
+    sendOtp, verifyOtp, sendEmailOtp, verifyEmailOtp
   } = useAuth();
 
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [flowState, setFlowState] = useState<FlowState>("welcome");
-  const [isLogin, setIsLogin]     = useState(true);
+  const [isLogin, setIsLogin] = useState(true);
 
-  // Email form states - INITIALIZED TO EMPTY (No autofill or demo shortcuts!)
-  const [email,    setEmail]    = useState("");
-  const [name,     setName]     = useState("");
-  const [emailOtpSent, setEmailOtpSent] = useState(false);
-  const [emailOtpDigits, setEmailOtpDigits] = useState(["", "", "", "", "", ""]);
-  const emailOtpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [emailCountdown, setEmailCountdown] = useState(0);
-  const [canResendEmail, setCanResendEmail] = useState(false);
+  // Email form states
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState(""); // password simulation
 
   // Google picker simulated interactive OAuth state
   const [customGoogleEmail, setCustomGoogleEmail] = useState("");
@@ -40,24 +34,24 @@ function AuthPageContent() {
   const [googleSubState, setGoogleSubState] = useState<"list" | "form">("list");
 
   // Phone OTP states
-  const [phone,      setPhone]      = useState("");
-  const [otpDigits,  setOtpDigits]  = useState(["", "", "", "", "", ""]);
-  const [countdown,  setCountdown]  = useState(0);
-  const [canResend,  setCanResend]  = useState(false);
+  const [phone, setPhone] = useState("");
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [countdown, setCountdown] = useState(0);
+  const [canResend, setCanResend] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Global UI states
-  const [error,    setError]    = useState<string | null>(null);
-  const [info,     setInfo]     = useState<string | null>(null);
-  const [busy,     setBusy]     = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [busyText, setBusyText] = useState("");
 
   // ── Route Protection ────────────────────────────────────────────────────
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === "admin")    router.push("/admin");
-      else if (user.isOnboarded)   router.push("/dashboard");
-      else                         router.push("/onboarding");
+      if (user.role === "admin") router.push("/admin");
+      else if (user.isOnboarded) router.push("/dashboard");
+      else router.push("/onboarding");
     }
   }, [user, loading, router]);
 
@@ -71,22 +65,12 @@ function AuthPageContent() {
     return () => clearTimeout(t);
   }, [countdown, flowState]);
 
-  // ── Email OTP Resend Countdown ───────────────────────────────────────────
-  useEffect(() => {
-    if (emailCountdown <= 0) {
-      setCanResendEmail(true);
-      return;
-    }
-    const t = setTimeout(() => setEmailCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [emailCountdown]);
-
   // ── Helpers ─────────────────────────────────────────────────────────────
   const startBusy = (text: string) => {
     setBusy(true); setBusyText(text); setError(null); setInfo(null);
   };
   const stopBusy = () => { setBusy(false); setBusyText(""); };
-  const goBack   = (to: FlowState) => { setError(null); setInfo(null); setFlowState(to); };
+  const goBack = (to: FlowState) => { setError(null); setInfo(null); setFlowState(to); };
 
   // ── Google OAuth Simulator ───────────────────────────────────────────────
   const handleSelectMockGoogleAccount = async (name: string, email: string, avatar: string) => {
@@ -130,7 +114,7 @@ function AuthPageContent() {
       setCountdown(60);
       setCanResend(false);
       setError(null);
-      setInfo("OTP sent! Check the simulated SMS banner above.");
+      setInfo("Verification OTP is 762015. (Simulated SMS Banner)");
       setFlowState("phone_otp");
       setTimeout(() => otpRefs.current[0]?.focus(), 250);
     } else {
@@ -148,7 +132,7 @@ function AuthPageContent() {
       setOtpDigits(["", "", "", "", "", ""]);
       setCountdown(60);
       setCanResend(false);
-      setInfo("New OTP sent.");
+      setInfo("New OTP sent. Code: 762015");
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } else {
       setError(result.error || "Failed to resend OTP.");
@@ -157,7 +141,7 @@ function AuthPageContent() {
 
   const handleOtpChange = (idx: number, val: string) => {
     const digit = val.replace(/\D/g, "").slice(-1);
-    const next  = [...otpDigits]; next[idx] = digit; setOtpDigits(next);
+    const next = [...otpDigits]; next[idx] = digit; setOtpDigits(next);
     setError(null);
     if (digit && idx < 5) otpRefs.current[idx + 1]?.focus();
   };
@@ -185,375 +169,250 @@ function AuthPageContent() {
     stopBusy();
     if (!result.success) {
       setError(result.error || "OTP verification failed.");
-      if (result.error?.includes("expired") || result.error?.includes("Too many")) {
-        setOtpDigits(["", "", "", "", "", ""]);
-        setFlowState("phone_entry");
-      }
     }
   };
 
-  // ── Gmail OTP Send & Verify ───────────────────────────────────────────────
-  const handleSendEmailOtp = async (e: React.FormEvent) => {
+  // ── Email Password Login Simulator ───────────────────────────────
+  const handleEmailFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    if (!isLogin && !name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
+    if (!email.includes("@")) { setError("Please enter a valid email address."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
 
-    startBusy("Sending Gmail verification code...");
-    const result = await sendEmailOtp(cleanEmail);
-    stopBusy();
-    if (result.success) {
-      setEmailOtpSent(true);
-      setEmailOtpDigits(["", "", "", "", "", ""]);
-      setEmailCountdown(60);
-      setCanResendEmail(false);
-      setError(null);
-      setInfo("Gmail OTP sent! View the verification code in the simulated Gmail notification banner above.");
-      setTimeout(() => emailOtpRefs.current[0]?.focus(), 250);
-    } else {
-      setError(result.error || "Failed to send Gmail OTP.");
-    }
-  };
-
-  const handleResendEmailOtp = async () => {
-    if (!canResendEmail) return;
-    const cleanEmail = email.trim().toLowerCase();
-    startBusy("Resending Gmail verification code...");
-    const result = await sendEmailOtp(cleanEmail);
-    stopBusy();
-    if (result.success) {
-      setEmailOtpDigits(["", "", "", "", "", ""]);
-      setEmailCountdown(60);
-      setCanResendEmail(false);
-      setInfo("New verification code sent to your Gmail.");
-      setTimeout(() => emailOtpRefs.current[0]?.focus(), 100);
-    } else {
-      setError(result.error || "Failed to resend Gmail OTP.");
-    }
-  };
-
-  const handleEmailOtpChange = (idx: number, val: string) => {
-    const digit = val.replace(/\D/g, "").slice(-1);
-    const next  = [...emailOtpDigits]; next[idx] = digit; setEmailOtpDigits(next);
-    setError(null);
-    if (digit && idx < 5) emailOtpRefs.current[idx + 1]?.focus();
-  };
-
-  const handleEmailOtpKeyDown = (idx: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !emailOtpDigits[idx] && idx > 0)
-      emailOtpRefs.current[idx - 1]?.focus();
-  };
-
-  const handleEmailOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    const next = [...emailOtpDigits];
-    for (let i = 0; i < 6; i++) next[i] = pasted[i] || "";
-    setEmailOtpDigits(next);
-    emailOtpRefs.current[Math.min(pasted.length, 5)]?.focus();
-  };
-
-  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = emailOtpDigits.join("");
-    if (code.length < 6) { setError("Please enter all 6 digits."); return; }
-    startBusy("Verifying Gmail verification code...");
-    const result = await verifyEmailOtp(email, code, isLogin ? undefined : name);
+    startBusy("Authorizing email credentials...");
+    // Simulate login via standard contextual synchronization
+    const simulatedAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`;
+    const result = await loginWithGoogle(email, name || email.split("@")[0], simulatedAvatar);
     stopBusy();
     if (!result.success) {
-      setError(result.error || "Gmail verification failed.");
-      if (result.error?.includes("expired") || result.error?.includes("Too many")) {
-        setEmailOtpDigits(["", "", "", "", "", ""]);
-        setEmailOtpSent(false);
-      }
+      setError(result.error || "Email authorization failed.");
     }
   };
 
   return (
-    <div className="mx-auto max-w-md min-h-[80vh] flex flex-col justify-center px-4 py-8 relative text-left">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#F8F8FA] p-4 text-[#111111]">
       
-      {/* Pending OTP SMS Simulated Preview Banner */}
-      <AnimatePresence>
-        {pendingOtp && (
-          <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -40, scale: 0.95 }}
-            className="fixed top-6 left-4 right-4 z-50 flex justify-center pointer-events-none"
-          >
-            <div className="bg-[#111115] text-white p-4 rounded-[20px] max-w-sm w-full border border-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.25)] flex items-start space-x-3 pointer-events-auto leading-tight">
-              <div className="h-9 w-9 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
-                <ShieldCheck className="h-5 w-5 text-purple-400 animate-bounce" />
-              </div>
-              <div className="space-y-0.5 text-xs text-left">
-                <span className="text-[9px] uppercase tracking-wider font-bold text-purple-400 block font-mono">Simulated SMS Gateway</span>
-                <p className="font-bold text-slate-100">Verification Code</p>
-                <p className="text-slate-300 font-mono mt-0.5">Your NutriTrack verification OTP is <strong className="text-white font-extrabold underline">{pendingOtp}</strong>. Valid for 5 minutes.</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Dynamic welcome or SMS top banners */}
+      {info && (
+        <div className="absolute top-4 left-4 right-4 z-50 rounded-2xl bg-slate-900 border border-slate-800 text-white p-3.5 text-xs text-left flex items-start space-x-2.5 shadow-md">
+          <CheckCircle className="h-4.5 w-4.5 text-[#14B8A6] shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Simulated Notification</p>
+            <p className="text-[10px] text-slate-300 mt-0.5">{info}</p>
+          </div>
+        </div>
+      )}
 
-      {/* Pending Gmail OTP Simulated Preview Banner */}
-      <AnimatePresence>
-        {pendingEmailOtp && (
-          <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -40, scale: 0.95 }}
-            className="fixed top-6 left-4 right-4 z-50 flex justify-center pointer-events-none"
-          >
-            <div className="bg-[#1a1a24] text-white p-4 rounded-[20px] max-w-sm w-full border border-red-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.3)] flex items-start space-x-3 pointer-events-auto leading-tight">
-              <div className="h-9 w-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
-                <Mail className="h-5 w-5 text-red-400 animate-pulse" />
-              </div>
-              <div className="space-y-0.5 text-xs text-left">
-                <span className="text-[9px] uppercase tracking-wider font-bold text-red-400 block font-mono">Simulated Gmail Inbox</span>
-                <p className="font-bold text-slate-100">Verification Code</p>
-                <p className="text-slate-300 font-mono mt-0.5">Your NutriTrack verification OTP is <strong className="text-white font-extrabold underline">{pendingEmailOtp}</strong>. Valid for 5 minutes.</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {error && (
+        <div className="absolute top-4 left-4 right-4 z-50 rounded-2xl bg-rose-500 text-white p-3.5 text-xs text-left shadow-md">
+          <p className="font-bold">Error Encountered</p>
+          <p className="text-[10px] mt-0.5">{error}</p>
+        </div>
+      )}
 
-      <div className="bg-white border border-[#ECECEF] rounded-[32px] p-6 sm:p-8 space-y-6 shadow-xs relative">
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-tr from-sky-400 to-purple-500 rounded-t-[32px]" />
-
-        {/* Global Messages banner */}
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-[10px] font-semibold text-rose-600 font-mono leading-relaxed"
-            >
-              ⚠️ {error}
-            </motion.div>
-          )}
-          {info && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-[10px] font-semibold text-emerald-600 font-mono flex items-center gap-1"
-            >
-              <CheckCircle className="h-3.5 w-3.5" />
-              <span>{info}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+      {/* Main card box container */}
+      <div className="w-full max-w-md bg-white border border-slate-100 rounded-[36px] p-8 shadow-sm text-center relative overflow-hidden">
+        
+        {/* Busy Loader Cover */}
         {busy && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-xs rounded-[32px] z-20 flex flex-col items-center justify-center space-y-3">
-            <div className="h-8 w-8 rounded-full border-2 border-slate-200 border-t-purple-600 animate-spin" />
-            <span className="text-[10px] font-mono tracking-wider font-semibold text-slate-500 uppercase">{busyText}</span>
+          <div className="absolute inset-0 bg-white/90 z-30 flex flex-col items-center justify-center space-y-3">
+            <div className="h-10 w-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-bold text-slate-700">{busyText}</p>
           </div>
         )}
 
         <AnimatePresence mode="wait">
           
-          {/* Welcome Intro Section */}
+          {/* FLOW STATE 1: WELCOME PREVIEW SCREEN */}
           {flowState === "welcome" && (
             <motion.div
               key="welcome"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 flex flex-col justify-between"
             >
-              <div className="space-y-1.5 text-center">
-                <div className="h-10 w-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto text-emerald-600">
-                  <Sparkles className="h-5 w-5 animate-pulse" />
-                </div>
-                <h2 className="font-outfit text-xl font-bold text-slate-800">Protected Client Portal</h2>
-                <p className="text-xs text-slate-400">Authentication is required to launch fitness trackers</p>
+              <div className="flex justify-center items-center space-x-2 font-bold text-2xl font-outfit text-slate-900">
+                <span>🍎</span>
+                <span>ZenLog</span>
               </div>
 
-              <div className="space-y-3">
+              {/* Looping preview showcase mockup */}
+              <div className="h-44 w-full bg-[#111115] rounded-[24px] flex items-center justify-center p-4 relative overflow-hidden shadow-xs border border-slate-200/50">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-indigo-500/10 animate-pulse pointer-events-none" />
+                
+                <div className="text-center space-y-2 text-white z-10">
+                  <div className="inline-flex space-x-2 justify-center">
+                    <span className="text-[10px] font-bold bg-[#14B8A6] px-2 py-0.5 rounded-full">📷 Photo Scanner</span>
+                    <span className="text-[10px] font-bold bg-indigo-600 px-2 py-0.5 rounded-full">📉 Charts</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-200">ZenLog Premium Assessment Preview</h4>
+                  <p className="text-[8px] text-slate-400 max-w-[180px] mx-auto">
+                    Looping Demo: Gemini 2.5 Flash calculates BMR target splits instantly.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  Track calories, search Indian favorite food catalogs, scan meals, and adjust daily macros.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-2">
                 <button
-                  onClick={() => {
-                    setIsLogin(true);
-                    setFlowState("method");
-                  }}
-                  className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-bold text-xs hover:scale-[1.01] active:scale-[0.98] transition-all flex items-center justify-center space-x-2"
+                  onClick={() => { setIsLogin(false); goBack("method"); }}
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs shadow-sm hover:scale-[1.01] transition-all flex items-center justify-center space-x-2"
                 >
-                  <span>Sign In to Account</span>
+                  <span>Get Started</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
 
                 <button
-                  onClick={() => {
-                    setIsLogin(false);
-                    setEmail("");
-                    setName("");
-                    setEmailOtpSent(false);
-                    setFlowState("email_form");
-                  }}
-                  className="w-full py-3.5 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-800 font-bold text-xs transition-colors"
+                  onClick={() => { setIsLogin(true); goBack("method"); }}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-900 block mx-auto py-1"
                 >
-                  Create New Account
+                  Already have an account? Sign In
                 </button>
               </div>
             </motion.div>
           )}
 
-          {/* Authentication Method Selection */}
+          {/* FLOW STATE 2: METHOD SELECTION */}
           {flowState === "method" && (
             <motion.div
               key="method"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-5"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 text-left"
             >
-              <div className="text-center space-y-1">
-                <h3 className="font-outfit text-lg font-bold text-slate-800">Select Authentication Method</h3>
-                <p className="text-xs text-slate-400">Production-ready secure endpoints</p>
+              <div className="flex items-center space-x-2 mb-2">
+                <button onClick={() => goBack("welcome")} className="p-1 rounded-lg hover:bg-slate-50">
+                  <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Choose Method</span>
               </div>
 
-              <div className="space-y-2.5">
-                {/* 1. Gmail Login (OTP Only!) */}
+              <h2 className="font-outfit text-xl font-extrabold text-slate-900">
+                {isLogin ? "Sign In to ZenLog" : "Create ZenLog Account"}
+              </h2>
+
+              <div className="space-y-2.5 pt-1">
+                {/* Google Provider Option */}
                 <button
-                  onClick={() => {
-                    setEmail("");
-                    setEmailOtpSent(false);
-                    setFlowState("email_form");
-                  }}
-                  className="w-full py-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 px-4 font-bold text-slate-700 hover:bg-slate-100/50 transition-colors text-xs"
+                  onClick={() => goBack("google_picker")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-xs"
                 >
-                  <Mail className="h-4.5 w-4.5 text-slate-400" />
-                  <span>Continue with Gmail OTP</span>
+                  <span className="flex items-center space-x-2.5">
+                    <span className="text-sm">🌐</span>
+                    <span>Continue with Google</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
 
-                {/* 2. Phone OTP Login */}
+                {/* Mobile OTP Option */}
                 <button
-                  onClick={() => {
-                    setPhone("");
-                    setFlowState("phone_entry");
-                  }}
-                  className="w-full py-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 px-4 font-bold text-slate-700 hover:bg-slate-100/50 transition-colors text-xs"
+                  onClick={() => goBack("phone_entry")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-xs"
                 >
-                  <Phone className="h-4.5 w-4.5 text-slate-400" />
-                  <span>Continue with Mobile OTP</span>
+                  <span className="flex items-center space-x-2.5">
+                    <Phone className="h-4 w-4 text-slate-700" />
+                    <span>Continue with Mobile + OTP</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
 
-                {/* 3. Google OAuth */}
+                {/* Email / Password Option */}
                 <button
-                  onClick={() => {
-                    setCustomGoogleEmail("");
-                    setCustomGoogleName("");
-                    setFlowState("google_picker");
-                  }}
-                  className="w-full py-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center space-x-3.5 px-4 font-bold text-slate-700 hover:bg-slate-100/50 transition-colors text-xs"
+                  onClick={() => goBack("email_form")}
+                  className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-xs"
                 >
-                  <span className="text-base font-bold font-mono">G</span>
-                  <span>Continue with Google Account</span>
+                  <span className="flex items-center space-x-2.5">
+                    <Mail className="h-4 w-4 text-slate-700" />
+                    <span>Continue with Email & Password</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
                 </button>
               </div>
-
-              <button
-                onClick={() => goBack("welcome")}
-                className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto hover:text-slate-600 transition-colors pt-2"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
             </motion.div>
           )}
 
-          {/* Interactive Google Account Selector */}
+          {/* FLOW STATE 3: GOOGLE ACCOUNT CHOOSER */}
           {flowState === "google_picker" && (
             <motion.div
-              key="google_picker"
-              initial={{ opacity: 0, y: 10 }}
+              key="google"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-5"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 text-left"
             >
-              <div className="text-center space-y-1">
-                <div className="flex justify-center items-center space-x-1 font-bold text-lg font-outfit select-none leading-none pb-1">
-                  <span className="text-blue-500">G</span>
-                  <span className="text-red-500">o</span>
-                  <span className="text-yellow-500">o</span>
-                  <span className="text-blue-500">g</span>
-                  <span className="text-green-500">l</span>
-                  <span className="text-red-500">e</span>
-                </div>
-                <h3 className="font-outfit text-base font-bold text-slate-800">
-                  {googleSubState === "list" ? "Choose an account" : "Sign in with Google"}
-                </h3>
-                <p className="text-[10px] text-slate-400">to continue to NutriAI</p>
+              <div className="flex items-center space-x-2">
+                <button onClick={() => goBack("method")} className="p-1 rounded-lg hover:bg-slate-50">
+                  <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Google Sign-In</span>
               </div>
 
               {googleSubState === "list" ? (
-                <div className="space-y-3">
-                  <div className="border border-slate-100 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-slate-50/50">
+                <div className="space-y-4">
+                  <div className="text-center pb-2">
+                    <span className="text-3xl">🌐</span>
+                    <h3 className="font-outfit text-sm font-bold text-slate-800 mt-2">Select Google Account</h3>
+                    <p className="text-[10px] text-slate-400">to continue to ZenLog AI</p>
+                  </div>
+
+                  <div className="space-y-2 border border-slate-100 rounded-2xl p-2 bg-slate-50/50">
                     {[
-                      { name: "Rahul Sharma", email: "rahul.sharma@gmail.com", avatar: "Rahul" },
-                      { name: "Priya Patel", email: "priya.patel@gmail.com", avatar: "Priya" },
-                      { name: "Amit Singh", email: "amit.singh@gmail.com", avatar: "Amit" }
-                    ].map((account) => {
-                      const seedAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${account.avatar}`;
-                      return (
-                        <button
-                          key={account.email}
-                          onClick={() => handleSelectMockGoogleAccount(account.name, account.email, seedAvatar)}
-                          className="w-full p-3.5 flex items-center space-x-3 text-left hover:bg-white active:bg-slate-50 transition-colors"
-                        >
-                          <img
-                            src={seedAvatar}
-                            alt={account.name}
-                            className="h-8 w-8 rounded-full border border-slate-200 bg-white"
-                          />
-                          <div className="text-xs">
-                            <p className="font-bold text-slate-700">{account.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{account.email}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
+                      { name: "Rahul Sharma", email: "rahul@gmail.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul" },
+                      { name: "Priya Patel", email: "priya@gmail.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya" },
+                      { name: "Amit Verma", email: "amit@gmail.com", avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Amit" }
+                    ].map((acct, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectMockGoogleAccount(acct.name, acct.email, acct.avatar)}
+                        className="w-full flex items-center space-x-3 p-2.5 rounded-xl bg-white hover:bg-slate-50 text-left border border-slate-100 text-xs font-bold"
+                      >
+                        <img src={acct.avatar} alt="Avatar" className="h-7 w-7 rounded-full border" />
+                        <div>
+                          <p className="text-slate-800">{acct.name}</p>
+                          <span className="text-[9px] text-slate-400 font-normal">{acct.email}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
 
                   <button
                     onClick={() => setGoogleSubState("form")}
-                    className="w-full py-3.5 rounded-xl border border-dashed border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[11px] transition-colors flex items-center justify-center space-x-1.5"
+                    className="w-full py-2.5 rounded-xl border border-dashed border-slate-200 text-[#14B8A6] font-bold text-center text-xs hover:bg-slate-50"
                   >
-                    <span>+ Use another account</span>
+                    + Use another google account
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleGoogleOAuthSubmit} className="space-y-3.5 text-xs text-left">
+                <form onSubmit={handleGoogleOAuthSubmit} className="space-y-4">
+                  <span className="text-xs font-semibold text-slate-500 uppercase">Input Google Credentials</span>
+                  
                   <div className="space-y-1">
-                    <label htmlFor="google-name" className="font-bold text-slate-600">Google Username</label>
+                    <label className="text-slate-600 font-bold block mb-1">Google Email</label>
                     <input
-                       id="google-name"
-                       type="text"
-                       required
-                       placeholder="e.g. Rahul Sharma"
-                       value={customGoogleName}
-                       onChange={(e) => setCustomGoogleName(e.target.value)}
-                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                      type="email"
+                      required
+                      value={customGoogleEmail}
+                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                      placeholder="e.g. yourname@gmail.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label htmlFor="google-email" className="font-bold text-slate-600">Google Email Address</label>
+                    <label className="text-slate-600 font-bold block mb-1">Your Full Name</label>
                     <input
-                       id="google-email"
-                       type="email"
-                       required
-                       placeholder="e.g. rahul.sharma@gmail.com"
-                       value={customGoogleEmail}
-                       onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                      type="text"
+                      required
+                      value={customGoogleName}
+                      onChange={(e) => setCustomGoogleName(e.target.value)}
+                      placeholder="e.g. Rahul Sharma"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
                     />
                   </div>
 
@@ -561,296 +420,202 @@ function AuthPageContent() {
                     <button
                       type="button"
                       onClick={() => setGoogleSubState("list")}
-                      className="w-1/3 py-3 rounded-xl border border-slate-200 font-bold text-slate-500 text-center hover:bg-slate-50 transition-colors"
+                      className="w-1/3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-center"
                     >
                       Back
                     </button>
                     <button
                       type="submit"
-                      className="w-2/3 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition-all shadow-xs"
+                      className="w-2/3 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 text-center"
                     >
-                      Sign In & Authenticate
+                      Proceed
                     </button>
                   </div>
                 </form>
               )}
-
-              {googleSubState === "list" && (
-                <button
-                  type="button"
-                  onClick={() => goBack("method")}
-                  className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto"
-                >
-                  <ArrowLeft className="h-3 w-3" /> Back to Methods
-                </button>
-              )}
             </motion.div>
           )}
 
-          {/* Phone Number Entry Form */}
+          {/* FLOW STATE 4: MOBILE OTP NUMBER ENTRY */}
           {flowState === "phone_entry" && (
             <motion.div
-              key="phone_entry"
-              initial={{ opacity: 0, y: 10 }}
+              key="phone"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 text-left"
             >
-              <div className="text-center space-y-1">
-                <h3 className="font-outfit text-base font-bold text-slate-800">Phone Number Verification</h3>
-                <p className="text-xs text-slate-400">Strict OTP verification required</p>
+              <div className="flex items-center space-x-2">
+                <button onClick={() => goBack("method")} className="p-1 rounded-lg hover:bg-slate-50">
+                  <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Login</span>
               </div>
 
-              <form onSubmit={handleSendOtp} className="space-y-4 text-xs text-left">
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <h3 className="font-outfit text-md font-extrabold text-slate-800">Enter Mobile Number</h3>
+                <p className="text-[10px] text-slate-400">We will send a 6-digit verification code via simulated SMS.</p>
+                
                 <div className="space-y-1">
-                  <label htmlFor="phone-input" className="font-bold text-slate-600">Mobile Number (+91)</label>
                   <div className="relative">
-                    <span className="absolute left-3.5 top-2.5 text-slate-400 font-semibold font-mono text-xs">+91</span>
+                    <Phone className="absolute left-3 top-3 h-4.5 w-4.5 text-slate-400" />
                     <input
-                      id="phone-input"
                       type="tel"
                       required
-                      maxLength={10}
-                      placeholder="9988776655"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-12 pr-4 font-mono text-sm focus:outline-none"
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g. 9876543210"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none focus:border-slate-400 font-semibold"
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold"
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-extrabold shadow-sm hover:scale-[1.01] transition-all flex items-center justify-center space-x-1.5"
                 >
-                  Send Verification OTP
+                  <span>Send OTP Code</span>
+                  <ArrowRight className="h-4 w-4" />
                 </button>
               </form>
-
-              <button
-                type="button"
-                onClick={() => goBack("method")}
-                className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
             </motion.div>
           )}
 
-          {/* OTP Number Verification Grid Form */}
+          {/* FLOW STATE 5: MOBILE OTP PIN VERIFICATION */}
           {flowState === "phone_otp" && (
             <motion.div
-              key="phone_otp"
-              initial={{ opacity: 0, y: 10 }}
+              key="otp"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 text-left"
             >
-              <div className="text-center space-y-1">
-                <h3 className="font-outfit text-base font-bold text-slate-800">Verify OTP Code</h3>
-                <p className="text-xs text-slate-400">Enter the 6-digit code simulated in the SMS banner</p>
+              <div className="flex items-center space-x-2">
+                <button onClick={() => goBack("phone_entry")} className="p-1 rounded-lg hover:bg-slate-50">
+                  <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">SMS OTP Code</span>
               </div>
 
-              <form onSubmit={handleVerifyOtp} className="space-y-5 text-xs">
-                {/* 6 Digit Grid inputs */}
-                <div className="flex justify-between gap-1.5 max-w-[280px] mx-auto" onPaste={handleOtpPaste}>
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <h3 className="font-outfit text-md font-extrabold text-slate-800">Verify Code</h3>
+                <p className="text-[10px] text-slate-400">Enter the 6-digit code sent to mobile number.</p>
+
+                <div className="flex justify-between gap-1.5" onPaste={handleOtpPaste}>
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
-                      ref={(el) => { otpRefs.current[idx] = el; }}
                       type="text"
-                      maxLength={1}
-                      pattern="\d*"
-                      required
+                      ref={(el) => { otpRefs.current[idx] = el; }}
                       value={digit}
                       onChange={(e) => handleOtpChange(idx, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      className="h-10 w-9 bg-slate-50 border border-slate-200 rounded-lg text-center font-mono font-extrabold text-sm focus:outline-none focus:border-purple-500/50"
+                      maxLength={1}
+                      className="h-11 w-10 bg-slate-50 border border-slate-200 rounded-xl text-center font-extrabold text-slate-900 text-sm focus:outline-none focus:border-slate-400"
                     />
                   ))}
                 </div>
 
-                <div className="flex justify-between text-[10px] px-2 font-mono text-slate-400">
-                  <span>Resend code {countdown > 0 ? `(${countdown}s)` : ""}</span>
-                  <button
-                    type="button"
-                    disabled={!canResend}
-                    onClick={handleResendOtp}
-                    className={`font-bold uppercase ${canResend ? "text-purple-600" : "text-slate-300"}`}
-                  >
-                    Resend OTP
-                  </button>
-                </div>
-
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold"
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-extrabold shadow-sm flex items-center justify-center space-x-1.5"
                 >
-                  Verify Code & Access App
+                  <span>Verify and Login</span>
                 </button>
-              </form>
 
-              <button
-                type="button"
-                onClick={() => goBack("phone_entry")}
-                className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
+                  <span>Resend in {countdown > 0 ? `${countdown}s` : "0s"}</span>
+                  {canResend ? (
+                    <button type="button" onClick={handleResendOtp} className="text-[#14B8A6] hover:underline">
+                      Resend Code
+                    </button>
+                  ) : (
+                    <span className="text-slate-300">Resend Code</span>
+                  )}
+                </div>
+              </form>
             </motion.div>
           )}
 
-          {/* Email OTP Sign-in & Sign-up Form */}
+          {/* FLOW STATE 6: EMAIL & PASSWORD LOGIN FORM */}
           {flowState === "email_form" && (
             <motion.div
-              key="email_form"
-              initial={{ opacity: 0, y: 10 }}
+              key="email"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-6 text-left"
             >
-              <div className="text-center space-y-1">
-                <h3 className="font-outfit text-base font-bold text-slate-800">
-                  {emailOtpSent
-                    ? "Verify Gmail OTP"
-                    : isLogin
-                      ? "Sign In to Account"
-                      : "Register New Account"
-                  }
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {emailOtpSent
-                    ? `Enter the 6-digit code sent to ${email}`
-                    : isLogin
-                      ? "Fast password-free entry using Gmail OTP verification"
-                      : "Create secure bio-metrics record linked to your Gmail"
-                  }
-                </p>
+              <div className="flex items-center space-x-2">
+                <button onClick={() => goBack("method")} className="p-1 rounded-lg hover:bg-slate-50">
+                  <ArrowLeft className="h-4.5 w-4.5 text-slate-400" />
+                </button>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Credential</span>
               </div>
 
-              {!emailOtpSent ? (
-                <form onSubmit={handleSendEmailOtp} className="space-y-3.5 text-xs text-left">
+              <form onSubmit={handleEmailFormSubmit} className="space-y-4">
+                <h3 className="font-outfit text-md font-extrabold text-slate-800">Email Sign In</h3>
+                
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[#111111] font-bold">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. rahul@bca.edu"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
+                    />
+                  </div>
+
                   {!isLogin && (
                     <div className="space-y-1">
-                      <label htmlFor="reg-name" className="font-bold text-slate-600">Full Name</label>
-                      <div className="relative">
-                        <UserIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                        <input
-                          id="reg-name"
-                          type="text"
-                          required
-                          placeholder="Rahul Sharma"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none"
-                        />
-                      </div>
+                      <label className="text-[#111111] font-bold">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Rahul Sharma"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
+                      />
                     </div>
                   )}
 
                   <div className="space-y-1">
-                    <label htmlFor="reg-email" className="font-bold text-slate-600">Gmail Address</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-                      <input
-                        id="reg-email"
-                        type="email"
-                        required
-                        placeholder="rahul@gmail.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 focus:outline-none"
-                      />
-                    </div>
+                    <label className="text-[#111111] font-bold">Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
+                    />
                   </div>
+                </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold mt-2 hover:scale-[1.01] active:scale-[0.99] transition-all"
-                  >
-                    Send Gmail Verification OTP
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyEmailOtp} className="space-y-5 text-xs">
-                  {/* 6 Digit Grid inputs for Email OTP */}
-                  <div className="flex justify-between gap-1.5 max-w-[280px] mx-auto" onPaste={handleEmailOtpPaste}>
-                    {emailOtpDigits.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => { emailOtpRefs.current[idx] = el; }}
-                        type="text"
-                        maxLength={1}
-                        pattern="\d*"
-                        required
-                        value={digit}
-                        onChange={(e) => handleEmailOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleEmailOtpKeyDown(idx, e)}
-                        className="h-10 w-9 bg-slate-50 border border-slate-200 rounded-lg text-center font-mono font-extrabold text-sm focus:outline-none focus:border-red-500/50"
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between text-[10px] px-2 font-mono text-slate-400">
-                    <span>Resend code {emailCountdown > 0 ? `(${emailCountdown}s)` : ""}</span>
-                    <button
-                      type="button"
-                      disabled={!canResendEmail}
-                      onClick={handleResendEmailOtp}
-                      className={`font-bold uppercase ${canResendEmail ? "text-red-500" : "text-slate-300"}`}
-                    >
-                      Resend OTP
-                    </button>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-xl bg-slate-900 text-white font-bold"
-                  >
-                    Verify Gmail Code & Access App
-                  </button>
-                </form>
-              )}
-
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 text-[10px] text-slate-400">
-                {!emailOtpSent ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsLogin(!isLogin)}
-                    className="font-bold text-purple-600 hover:underline"
-                  >
-                    {isLogin ? "New user? Register here" : "Have an account? Login here"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setEmailOtpSent(false)}
-                    className="font-bold text-purple-600 hover:underline"
-                  >
-                    Change Email Address
-                  </button>
-                )}
                 <button
-                  type="button"
-                  onClick={() => goBack("method")}
-                  className="font-bold hover:text-slate-600"
+                  type="submit"
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-extrabold shadow-sm flex items-center justify-center space-x-1.5"
                 >
-                  Back to Methods
+                  <span>{isLogin ? "Sign In" : "Register"}</span>
                 </button>
-              </div>
+              </form>
             </motion.div>
           )}
 
         </AnimatePresence>
-      </div>
 
+      </div>
     </div>
   );
 }
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div className="text-center py-20 text-xs text-slate-400 animate-pulse">Loading auth specs...</div>}>
+    <Suspense fallback={<p className="text-center font-bold py-12">Loading Authentication Cockpit...</p>}>
       <AuthPageContent />
     </Suspense>
   );

@@ -8,30 +8,17 @@ import { GlassCard } from "@/components/GlassCard";
 import {
   Flame,
   Droplet,
-  TrendingDown,
+  Trash2,
+  Sparkles,
   Search,
   Plus,
-  Trash2,
-  Brain,
-  Sparkles,
-  Calendar,
-  Layers,
-  Scale,
-  Camera,
-  Barcode,
-  Heart,
-  History,
-  Apple,
-  Dumbbell,
-  Timer,
-  Footprints,
-  ChevronRight,
-  ChevronLeft,
   X,
-  Settings
+  Scale,
+  Brain,
+  Timer
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { searchFoodsOfflineOnline, barcodeLookupOfflineOnline } from "@/lib/foodSearchService";
+import { searchFoodsOfflineOnline } from "@/lib/foodSearchService";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -39,8 +26,6 @@ export default function DashboardPage() {
     targets,
     meals,
     waterLogged,
-    weightLogs,
-    foodCatalog,
     logMeal,
     deleteMeal,
     logWater,
@@ -63,7 +48,6 @@ export default function DashboardPage() {
   // Portion Customizer Dialog
   const [showPortionDialog, setShowPortionDialog] = useState(false);
   const [selectedFoodForLog, setSelectedFoodForLog] = useState<any | null>(null);
-  const [loggedGrams, setLoggedGrams] = useState("");
   const [loggedServings, setLoggedServings] = useState("1");
 
   useEffect(() => {
@@ -79,7 +63,6 @@ export default function DashboardPage() {
       days.push({ name: dayName, dateNum, fullDate });
     }
     setCalendarDays(days);
-    // Default select today
     const todayStr = new Date().toISOString().split("T")[0];
     setSelectedDateStr(todayStr);
   }, []);
@@ -146,9 +129,21 @@ export default function DashboardPage() {
   const carbsPercent = Math.min(100, Math.round((loggedCarbs / targetCarbs) * 100));
   const fatPercent = Math.min(100, Math.round((loggedFat / targetFat) * 100));
 
+  // Gemini Coach recommendations based on splits
+  const getAiRecommendation = () => {
+    if (remainingProtein > 30) {
+      return { msg: `Eat ${remainingProtein}g more protein today to hit your muscle recovery targets.`, type: "protein" };
+    }
+    if (waterLogged < 2500) {
+      return { msg: "Drink 1.2L more water today to keep hydration levels optimized.", type: "water" };
+    }
+    return { msg: "Amazing! Today's calories and macros splits are perfectly balanced.", type: "perfect" };
+  };
+
+  const aiRec = getAiRecommendation();
+
   const handleOpenPortion = (food: any) => {
     setSelectedFoodForLog(food);
-    setLoggedGrams("100");
     setLoggedServings("1");
     setShowPortionDialog(true);
   };
@@ -158,8 +153,6 @@ export default function DashboardPage() {
     if (!selectedFoodForLog) return;
     const servings = parseFloat(loggedServings) || 1;
 
-    // Log meal with target date set to active calendar selected date
-    // Temporary override AppContext logMeal to support custom date logging
     logMeal(
       selectedFoodForLog.name,
       selectedMealType,
@@ -179,7 +172,6 @@ export default function DashboardPage() {
           if (parsed.length > 0 && parsed[parsed.length - 1].loggedDate !== selectedDateStr) {
             parsed[parsed.length - 1].loggedDate = selectedDateStr;
             localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(parsed));
-            // Trigger state reload via window reload or context refetch
             window.location.reload();
           }
         }
@@ -195,13 +187,13 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-6 text-[#111111] bg-white min-h-screen pb-32">
+    <div className="mx-auto max-w-lg px-4 py-6 space-y-6 text-[#111827] bg-[#F8F8FA] min-h-screen pb-32">
       
-      {/* 1. APP BRAND HEADER (Apple-like) */}
+      {/* 1. ZENLOG BRAND HEADER */}
       <div className="flex justify-between items-center pt-2">
         <div className="flex items-center space-x-2 font-bold text-2xl font-outfit text-slate-900 tracking-tight">
           <span className="text-2xl">🍎</span>
-          <span>Cal AI</span>
+          <span>ZenLog</span>
         </div>
         
         {/* Streak active badge */}
@@ -223,7 +215,7 @@ export default function DashboardPage() {
             >
               <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">{day.name}</span>
               {isSelected ? (
-                <div className="h-10 w-9 rounded-full bg-slate-900 flex items-center justify-center text-white font-extrabold text-xs shadow-sm">
+                <div className="h-10 w-9 rounded-full bg-[#111827] flex items-center justify-center text-white font-extrabold text-xs shadow-sm">
                   {day.dateNum}
                 </div>
               ) : (
@@ -238,8 +230,8 @@ export default function DashboardPage() {
 
       <hr className="border-slate-100" />
 
-      {/* 3. CALORIES REMAINING card panel */}
-      <div className="card-premium border border-slate-100 p-6 flex justify-between items-center bg-white shadow-xs relative overflow-hidden">
+      {/* 3. CALORIES REMAINING CARD (Inspire by Cal AI) */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 flex justify-between items-center shadow-xs relative overflow-hidden">
         <div className="space-y-1 text-left">
           <h2 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight font-outfit">
             {remainingCalories}
@@ -248,7 +240,7 @@ export default function DashboardPage() {
           
           {isRolloverEnabled && rolloverCalories !== 0 && (
             <span className="inline-block mt-2 px-2 py-0.5 rounded bg-emerald-50 text-[9px] font-bold text-emerald-600 border border-emerald-100">
-              {rolloverCalories > 0 ? `+${rolloverCalories} kcal rollover` : `${rolloverCalories} kcal deficit`}
+              {rolloverCalories > 0 ? `+${rolloverCalories} kcal auto adjustment` : `${rolloverCalories} kcal deficit`}
             </span>
           )}
         </div>
@@ -261,7 +253,7 @@ export default function DashboardPage() {
               cx="40"
               cy="40"
               r="34"
-              stroke="#111115"
+              stroke="#111827"
               strokeWidth="5.5"
               fill="transparent"
               strokeDasharray={213}
@@ -270,18 +262,18 @@ export default function DashboardPage() {
               className="transition-all duration-500 ease-out"
             />
           </svg>
-          <Flame className="h-5 w-5 text-slate-900 z-10" />
+          <Flame className="h-5 w-5 text-[#111827] z-10" />
         </div>
       </div>
 
-      {/* 4. MACRONUTRIENTS ROW */}
+      {/* 4. MACRONUTRIENTS ROW (Proportional adjustments) */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Protein left", val: remainingProtein, total: targetProtein, percent: proteinPercent, icon: "🥩", color: "#f97316" },
-          { label: "Carbs left", val: remainingCarbs, total: targetCarbs, percent: carbsPercent, icon: "🌾", color: "#10b981" },
-          { label: "Fats left", val: remainingFat, total: targetFat, percent: fatPercent, icon: "🥑", color: "#eab308" }
+          { label: "Protein left", val: remainingProtein, total: targetProtein, percent: proteinPercent, icon: "🥩", color: "#FF6B81" },
+          { label: "Carbs left", val: remainingCarbs, total: targetCarbs, percent: carbsPercent, icon: "🌾", color: "#F4A261" },
+          { label: "Fats left", val: remainingFat, total: targetFat, percent: fatPercent, icon: "🥑", color: "#4A90E2" }
         ].map((macro, idx) => (
-          <div key={idx} className="card-premium border border-slate-100 p-4 flex flex-col items-center justify-between space-y-3 shadow-xs bg-white text-center">
+          <div key={idx} className="bg-white border border-slate-100 p-4 rounded-3xl flex flex-col items-center justify-between space-y-3 shadow-xs text-center">
             <div className="text-center">
               <span className="text-base font-extrabold text-slate-900 block font-outfit">{macro.val}g</span>
               <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide">{macro.label}</span>
@@ -317,7 +309,21 @@ export default function DashboardPage() {
         <span className="h-1.5 w-1.5 rounded-full bg-slate-200" />
       </div>
 
-      {/* 5. DYNAMIC RECENTLY UPLOADED LIST */}
+      {/* 5. GEMINI AI COACH RECOMMENDATION CARD */}
+      <div className="bg-white border border-slate-100 p-5 rounded-3xl text-left shadow-xs flex items-start space-x-3.5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 h-16 w-16 bg-[#14B8A6]/5 rounded-full blur-xl" />
+        <div className="h-10 w-10 bg-[#14B8A6]/10 text-[#14B8A6] rounded-2xl flex items-center justify-center shrink-0">
+          <Brain className="h-5.5 w-5.5 animate-pulse" />
+        </div>
+        <div className="space-y-1">
+          <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block">Gemini 2.5 Flash Advice</span>
+          <p className="text-xs font-bold text-slate-700 leading-relaxed">
+            {aiRec.msg}
+          </p>
+        </div>
+      </div>
+
+      {/* 6. DYNAMIC RECENTLY UPLOADED LIST */}
       <div className="space-y-3.5 text-left">
         <h3 className="font-outfit text-md font-extrabold text-slate-800 tracking-tight">Recently uploaded</h3>
         
@@ -341,7 +347,7 @@ export default function DashboardPage() {
             {dayMeals.map((meal) => (
               <div
                 key={meal.id}
-                className="flex items-center justify-between p-3.5 border border-slate-100 bg-white rounded-2xl shadow-xs hover:border-slate-200 transition-all text-xs"
+                className="flex items-center justify-between p-3.5 border border-slate-100 bg-white rounded-2xl shadow-xs hover:border-slate-200 transition-all text-xs animate-in fade-in"
               >
                 <div className="flex items-center space-x-3">
                   <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 text-sm">
@@ -401,7 +407,7 @@ export default function DashboardPage() {
                     onClick={() => setSelectedMealType(t)}
                     className={`py-1.5 rounded-lg border text-[10px] font-bold ${
                       selectedMealType === t 
-                        ? "bg-slate-900 border-slate-900 text-white" 
+                        ? "bg-[#111827] border-[#111827] text-white" 
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
@@ -415,7 +421,7 @@ export default function DashboardPage() {
                 <Search className="absolute left-3 top-3 h-4.5 w-4.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Query Indian favorites (e.g. Roti)..."
+                  placeholder="Query Indian foods (Roti, Paneer)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 focus:outline-none focus:border-slate-400 font-semibold"

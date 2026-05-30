@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Activity, LogOut, Sparkles, LineChart, User as UserIcon } from "lucide-react";
+import { Activity, LogOut, Sparkles, LineChart, User as UserIcon, Apple } from "lucide-react";
 
 export default function NavigationHeader() {
   const { user, logout } = useAuth();
@@ -12,11 +12,11 @@ export default function NavigationHeader() {
   const router = useRouter();
 
   // Hide nav on onboarding page to keep user focused
-  if (pathname === "/onboarding") return null;
+  if (pathname === "/onboarding" || pathname === "/auth") return null;
 
   const handleLogout = () => {
     logout();
-    router.push("/");
+    router.push("/auth");
   };
 
   const isActive = (path: string) => pathname === path;
@@ -27,15 +27,15 @@ export default function NavigationHeader() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo Section */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 transition-transform duration-300 group-hover:scale-105">
-              <Sparkles className="h-5 w-5 text-emerald-600 animate-pulse" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900/5 transition-transform duration-300 group-hover:scale-105">
+              <span className="text-xl">🍎</span>
             </div>
             <span className="font-outfit text-xl font-bold tracking-tight text-[#111111] transition-colors duration-300">
-              NutriTrack <span className="bg-gradient-to-tr from-sky-400 to-emerald-500 bg-clip-text text-transparent">AI</span>
+              ZenLog
             </span>
           </Link>
  
-          {/* Navigation Links (Visible when logged in) */}
+          {/* Navigation Links */}
           <nav className="hidden md:flex items-center space-x-1.5">
             {user && user.isOnboarded && (
               <>
@@ -43,7 +43,7 @@ export default function NavigationHeader() {
                   href="/dashboard"
                   className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
                     isActive("/dashboard")
-                      ? "bg-[#111111] border-[#111111] text-white"
+                      ? "bg-[#111827] border-[#111827] text-white"
                       : "text-[#8D8D92] hover:text-[#111111] hover:bg-slate-50 border-transparent"
                   }`}
                 >
@@ -55,12 +55,12 @@ export default function NavigationHeader() {
                   href="/progress"
                   className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 border ${
                     isActive("/progress")
-                      ? "bg-[#111111] border-[#111111] text-white"
+                      ? "bg-[#111827] border-[#111827] text-white"
                       : "text-[#8D8D92] hover:text-[#111111] hover:bg-slate-50 border-transparent"
                   }`}
                 >
                   <LineChart className="h-4 w-4" />
-                  <span>Reports & Charts</span>
+                  <span>Reports & Progress</span>
                 </Link>
               </>
             )}
@@ -73,7 +73,7 @@ export default function NavigationHeader() {
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="text-xs font-semibold text-[#111111]">{user.name}</span>
                   <span className="text-[9px] text-[#8D8D92] font-mono capitalize">
-                    🎓 BCA Final Project
+                    🍃 Premium AI Coach
                   </span>
                 </div>
                 <div className="flex items-center justify-center h-8 w-8 rounded-full bg-[#F8F8FA] border border-[#ECECEF]">
