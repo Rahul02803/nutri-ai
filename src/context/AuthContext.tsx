@@ -140,9 +140,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  function syncUserToDatabase(u: User) {
+    try {
+      const raw = localStorage.getItem("nutriai_database_users") || "[]";
+      const users: any[] = JSON.parse(raw);
+      const index = users.findIndex((item) => item.user_id === u.id || (u.email && item.email === u.email));
+      const nowStr = new Date().toISOString();
+      
+      const record = {
+        user_id: u.id,
+        google_id: u.provider === "google" ? `g_${u.id}` : (index >= 0 ? users[index].google_id : undefined),
+        name: u.name,
+        email: u.email || `${u.id}@phone.nutriai.app`,
+        profile_picture: u.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
+        authentication_provider: u.provider,
+        created_at: index >= 0 ? users[index].created_at || nowStr : nowStr,
+        updated_at: nowStr,
+        last_login: nowStr
+      };
+      
+      if (index >= 0) {
+        users[index] = { ...users[index], ...record };
+      } else {
+        users.push(record);
+      }
+      
+      localStorage.setItem("nutriai_database_users", JSON.stringify(users));
+    } catch (e) {
+      console.error("Failed to sync user to database", e);
+    }
+  }
+
   function persist(u: User) {
     setUser(u);
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+    syncUserToDatabase(u);
   }
 
   function refreshSession(u: User): User {
@@ -590,33 +622,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = () => {
-    if (user) {
-      [
-        SESSION_KEY,
-        OTP_KEY,
-        `nutriai_onboarding_${user.id}`,
-        `nutriai_meals_${user.id}`,
-        `nutriai_water_${user.id}`,
-        `nutriai_weights_${user.id}`,
-        `nutriai_workouts_${user.id}`,
-        `nutriai_fasting_${user.id}`,
-        `nutriai_steps_${user.id}`,
-        `nutriai_manual_targets_${user.id}`,
-        `nutriai_favorites_${user.id}`,
-        `nutriai_custom_foods_${user.id}`,
-        `nutriai_badges_${user.id}`,
-        `nutriai_recent_searches_${user.id}`,
-        "nutriai_user",
-        "nutriai_onboarding_answers",
-        "nutriai_meals",
-        "nutriai_water",
-        "nutriai_weights",
-      ].forEach((k) => {
-        try { localStorage.removeItem(k); } catch { /* ignore */ }
-      });
-    }
     setPendingOtp(null);
+    setPendingEmailOtp(null);
     setUser(null);
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(OTP_KEY);
+      localStorage.removeItem(EMAIL_OTP_KEY);
+    } catch (e) {
+      console.error("Logout storage clean error", e);
+    }
   };
 
   const updateUserOnboardStatus = (status: boolean) => {

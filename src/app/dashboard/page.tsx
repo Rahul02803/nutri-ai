@@ -63,7 +63,9 @@ export default function DashboardPage() {
     logWorkout,
     deleteWorkout,
     streakCount,
-    unlockedBadges
+    unlockedBadges,
+    isRolloverEnabled,
+    rolloverCalories
   } = useApp();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -288,8 +290,12 @@ export default function DashboardPage() {
   const loggedCalcium = todayMeals.reduce((acc, m) => acc + (m?.calcium || 0), 0);
   const loggedIron = todayMeals.reduce((acc, m) => acc + (m?.iron || 0), 0);
 
-  const remainingCalories = Math.max(0, targets.targetCalories - loggedCalories);
-  const caloriePercent = Math.min(100, Math.round((loggedCalories / targets.targetCalories) * 100));
+  const todayCalorieTarget = isRolloverEnabled 
+    ? targets.targetCalories + rolloverCalories 
+    : targets.targetCalories;
+
+  const remainingCalories = Math.max(0, todayCalorieTarget - loggedCalories);
+  const caloriePercent = Math.min(100, Math.round((loggedCalories / todayCalorieTarget) * 100));
 
   // Log weight handler
   const handleLogWeightSubmit = (e: React.FormEvent) => {
@@ -458,9 +464,21 @@ export default function DashboardPage() {
               <div className="space-y-0.5 z-10">
                 <span className="text-3xl font-extrabold text-slate-900 font-outfit block">{remainingCalories}</span>
                 <span className="text-[10px] uppercase font-mono tracking-widest text-slate-400 font-bold block">kcal left</span>
-                <span className="text-[10px] font-semibold text-slate-400 block">Logged: {loggedCalories} / {targets.targetCalories}</span>
+                <span className="text-[10px] font-semibold text-slate-400 block">Logged: {loggedCalories} / {todayCalorieTarget}</span>
               </div>
             </div>
+            {isRolloverEnabled && rolloverCalories !== 0 && (
+              <span className={`px-2.5 py-1 rounded-xl font-mono text-[9px] font-bold border ${
+                rolloverCalories >= 0 
+                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                  : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+              }`}>
+                {rolloverCalories >= 0 
+                  ? `🟢 Rollover active: +${rolloverCalories} kcal`
+                  : `🔴 Deficit active: ${rolloverCalories} kcal`
+                }
+              </span>
+            )}
           </GlassCard>
         </div>
 

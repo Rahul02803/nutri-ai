@@ -37,6 +37,7 @@ function AuthPageContent() {
   // Google picker simulated interactive OAuth state
   const [customGoogleEmail, setCustomGoogleEmail] = useState("");
   const [customGoogleName, setCustomGoogleName] = useState("");
+  const [googleSubState, setGoogleSubState] = useState<"list" | "form">("list");
 
   // Phone OTP states
   const [phone,      setPhone]      = useState("");
@@ -88,6 +89,15 @@ function AuthPageContent() {
   const goBack   = (to: FlowState) => { setError(null); setInfo(null); setFlowState(to); };
 
   // ── Google OAuth Simulator ───────────────────────────────────────────────
+  const handleSelectMockGoogleAccount = async (name: string, email: string, avatar: string) => {
+    startBusy(`Connecting to Google OAuth for ${email}...`);
+    const result = await loginWithGoogle(email, name, avatar);
+    stopBusy();
+    if (!result.success) {
+      setError(result.error || "Google authentication failed.");
+    }
+  };
+
   const handleGoogleOAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customGoogleEmail.includes("@") || !customGoogleEmail.includes(".")) {
@@ -466,55 +476,114 @@ function AuthPageContent() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="space-y-4"
+              className="space-y-5"
             >
               <div className="text-center space-y-1">
-                <h3 className="font-outfit text-base font-bold text-slate-800">Simulated Google Accounts selector</h3>
-                <p className="text-xs text-slate-400">Verifying secure OAuth payload binding</p>
+                <div className="flex justify-center items-center space-x-1 font-bold text-lg font-outfit select-none leading-none pb-1">
+                  <span className="text-blue-500">G</span>
+                  <span className="text-red-500">o</span>
+                  <span className="text-yellow-500">o</span>
+                  <span className="text-blue-500">g</span>
+                  <span className="text-green-500">l</span>
+                  <span className="text-red-500">e</span>
+                </div>
+                <h3 className="font-outfit text-base font-bold text-slate-800">
+                  {googleSubState === "list" ? "Choose an account" : "Sign in with Google"}
+                </h3>
+                <p className="text-[10px] text-slate-400">to continue to NutriAI</p>
               </div>
 
-              <form onSubmit={handleGoogleOAuthSubmit} className="space-y-3.5 text-xs text-left">
-                <div className="space-y-1">
-                  <label htmlFor="google-name" className="font-bold text-slate-600">Google Username</label>
-                  <input
-                     id="google-name"
-                     type="text"
-                     required
-                     placeholder="e.g. Rahul Sharma"
-                     value={customGoogleName}
-                     onChange={(e) => setCustomGoogleName(e.target.value)}
-                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
-                  />
-                </div>
+              {googleSubState === "list" ? (
+                <div className="space-y-3">
+                  <div className="border border-slate-100 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-slate-50/50">
+                    {[
+                      { name: "Rahul Sharma", email: "rahul.sharma@gmail.com", avatar: "Rahul" },
+                      { name: "Priya Patel", email: "priya.patel@gmail.com", avatar: "Priya" },
+                      { name: "Amit Singh", email: "amit.singh@gmail.com", avatar: "Amit" }
+                    ].map((account) => {
+                      const seedAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${account.avatar}`;
+                      return (
+                        <button
+                          key={account.email}
+                          onClick={() => handleSelectMockGoogleAccount(account.name, account.email, seedAvatar)}
+                          className="w-full p-3.5 flex items-center space-x-3 text-left hover:bg-white active:bg-slate-50 transition-colors"
+                        >
+                          <img
+                            src={seedAvatar}
+                            alt={account.name}
+                            className="h-8 w-8 rounded-full border border-slate-200 bg-white"
+                          />
+                          <div className="text-xs">
+                            <p className="font-bold text-slate-700">{account.name}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{account.email}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                <div className="space-y-1">
-                  <label htmlFor="google-email" className="font-bold text-slate-600">Google Email Address</label>
-                  <input
-                     id="google-email"
-                     type="email"
-                     required
-                     placeholder="e.g. rahul.sharma@gmail.com"
-                     value={customGoogleEmail}
-                     onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
-                  />
+                  <button
+                    onClick={() => setGoogleSubState("form")}
+                    className="w-full py-3.5 rounded-xl border border-dashed border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[11px] transition-colors flex items-center justify-center space-x-1.5"
+                  >
+                    <span>+ Use another account</span>
+                  </button>
                 </div>
+              ) : (
+                <form onSubmit={handleGoogleOAuthSubmit} className="space-y-3.5 text-xs text-left">
+                  <div className="space-y-1">
+                    <label htmlFor="google-name" className="font-bold text-slate-600">Google Username</label>
+                    <input
+                       id="google-name"
+                       type="text"
+                       required
+                       placeholder="e.g. Rahul Sharma"
+                       value={customGoogleName}
+                       onChange={(e) => setCustomGoogleName(e.target.value)}
+                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                    />
+                  </div>
 
+                  <div className="space-y-1">
+                    <label htmlFor="google-email" className="font-bold text-slate-600">Google Email Address</label>
+                    <input
+                       id="google-email"
+                       type="email"
+                       required
+                       placeholder="e.g. rahul.sharma@gmail.com"
+                       value={customGoogleEmail}
+                       onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                       className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGoogleSubState("list")}
+                      className="w-1/3 py-3 rounded-xl border border-slate-200 font-bold text-slate-500 text-center hover:bg-slate-50 transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="w-2/3 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold transition-all shadow-xs"
+                    >
+                      Sign In & Authenticate
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {googleSubState === "list" && (
                 <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all shadow-xs"
+                  type="button"
+                  onClick={() => goBack("method")}
+                  className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto"
                 >
-                  Verify Google OAuth Token
+                  <ArrowLeft className="h-3 w-3" /> Back to Methods
                 </button>
-              </form>
-
-              <button
-                type="button"
-                onClick={() => goBack("method")}
-                className="text-[10px] text-slate-400 font-bold flex items-center justify-center gap-1 mx-auto"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back
-              </button>
+              )}
             </motion.div>
           )}
 

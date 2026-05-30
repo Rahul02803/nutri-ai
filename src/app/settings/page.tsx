@@ -25,7 +25,10 @@ export default function SettingsPage() {
     targets, 
     saveOnboarding, 
     manuallySetTargets, 
-    resetAllData 
+    resetAllData,
+    isRolloverEnabled,
+    toggleRollover,
+    rolloverCalories
   } = useApp();
   const router = useRouter();
 
@@ -283,6 +286,43 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+          </GlassCard>
+
+          {/* Calorie Rollover Intelligence Panel */}
+          <GlassCard glow glowColor="emerald" className="p-6 space-y-4">
+            <span className="font-outfit text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-3">
+              <Scale className="h-4 w-4 text-emerald-500" />
+              Advanced Calorie Intelligence
+            </span>
+            <div className="flex justify-between items-center gap-3">
+              <div className="space-y-1 text-left">
+                <p className="text-xs font-bold text-slate-800">Carry Over Remaining Calories</p>
+                <p className="text-[10px] text-slate-400 leading-relaxed max-w-[280px]">
+                  Roll over yesterday's unused calories to today's budget or subtract any excess to stay perfectly balanced over weekly intervals.
+                </p>
+                {isRolloverEnabled && (
+                  <span className="inline-block mt-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 font-mono text-[9px] font-bold">
+                    {rolloverCalories >= 0 
+                      ? `🟢 Rollover active: +${rolloverCalories} kcal carries over today`
+                      : `🔴 Deficit active: ${rolloverCalories} kcal subtracted today`
+                    }
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={toggleRollover}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isRolloverEnabled ? "bg-emerald-500" : "bg-slate-200"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                    isRolloverEnabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </GlassCard>
 
           {/* Critical resets logs panel */}

@@ -24,9 +24,16 @@ export default function AdminPage() {
   const { foodCatalog, addNewFoodToCatalog, deleteFoodFromCatalog } = useApp();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [usersList, setUsersList] = useState<any[]>([]);
 
   useEffect(() => {
     setMounted(true);
+    try {
+      const raw = localStorage.getItem("nutriai_database_users") || "[]";
+      setUsersList(JSON.parse(raw));
+    } catch (e) {
+      setUsersList([]);
+    }
   }, []);
 
   // Route security block
@@ -76,8 +83,8 @@ export default function AdminPage() {
 
   // Mock aggregated metric analytics datasets
   const systemMetrics = {
-    totalUsers: 142,
-    activeDaily: 94,
+    totalUsers: Math.max(usersList.length, 3), // Show active count or base visual minimum
+    activeDaily: Math.max(Math.floor(usersList.length * 0.7), 2),
     avgCalorieDeficit: 485,
     dbItemsCount: foodCatalog.length,
   };
@@ -312,6 +319,67 @@ export default function AdminPage() {
         </div>
 
       </div>
+
+      {/* Registered User Directory Table */}
+      <GlassCard className="p-6 md:p-8 space-y-4">
+        <div className="flex justify-between items-center border-b border-white/[0.04] pb-4">
+          <span className="font-outfit text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Users className="h-4.5 w-4.5 text-indigo-400" />
+            Registered User Directory ({usersList.length} Active Profiles)
+          </span>
+          <span className="text-[10px] text-slate-500 italic">Centralized local user accounts database table</span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-white/[0.06] text-slate-400 font-mono font-bold uppercase tracking-wider text-[9px]">
+                <th className="pb-3 pl-2">User / Avatar</th>
+                <th className="pb-3">Email Address</th>
+                <th className="pb-3">Signup Date</th>
+                <th className="pb-3">Last Login</th>
+                <th className="pb-3 pr-2 text-right">Provider</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.03]">
+              {usersList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-slate-500 italic font-mono">
+                    No active user profiles registered yet.
+                  </td>
+                </tr>
+              ) : (
+                usersList.map((usr) => (
+                  <tr key={usr.user_id} className="hover:bg-white/[0.01] transition-colors">
+                    <td className="py-3 pl-2 flex items-center space-x-3">
+                      <img
+                        src={usr.profile_picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(usr.name)}`}
+                        alt={usr.name}
+                        className="h-7 w-7 rounded-full bg-slate-800 border border-slate-700 shrink-0"
+                      />
+                      <span className="font-bold text-slate-200">{usr.name}</span>
+                    </td>
+                    <td className="py-3 font-mono text-slate-300">{usr.email}</td>
+                    <td className="py-3 text-slate-400">{usr.created_at ? new Date(usr.created_at).toLocaleDateString() : "N/A"}</td>
+                    <td className="py-3 text-slate-400">{usr.last_login ? new Date(usr.last_login).toLocaleString() : "N/A"}</td>
+                    <td className="py-3 pr-2 text-right">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${
+                        usr.authentication_provider === "google"
+                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                          : usr.authentication_provider === "phone"
+                            ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                            : "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                      }`}>
+                        {usr.authentication_provider}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </GlassCard>
 
       {/* Grid: Preloaded Catalog Viewer with delete option */}
       <GlassCard className="p-6 md:p-8 space-y-4">

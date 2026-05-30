@@ -115,6 +115,9 @@ interface AppContextType {
   toggleFavorite: (food: FoodItem) => void;
   addRecentSearch: (query: string) => void;
   resetAllData: () => void;
+  isRolloverEnabled: boolean;
+  toggleRollover: () => void;
+  rolloverCalories: number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -145,6 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
   const [streakCount, setStreakCount] = useState<number>(0);
   const [unlockedBadges, setUnlockedBadges] = useState<Badge[]>([]);
+  const [isRolloverEnabled, setIsRolloverEnabled] = useState<boolean>(false);
 
   // Initialize and load persistent data
   useEffect(() => {
@@ -165,10 +169,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setStreakCount(0);
       setUnlockedBadges([]);
       setTargets(null);
+      setIsRolloverEnabled(false);
       return;
     }
 
     const todayStr = new Date().toISOString().split("T")[0];
+
+    try {
+      const storedRollover = localStorage.getItem(`nutriai_rollover_enabled_${user.id}`);
+      setIsRolloverEnabled(storedRollover ? JSON.parse(storedRollover) : false);
+    } catch (e) {}
 
     // 1. Load Onboarding Data & Calculate Targets
     try {
@@ -749,6 +759,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateUserOnboardStatus(false);
   };
 
+  const getRolloverCalories = (): number => {
+    if (!user || !isRolloverEnabled || meals.length === 0) return 0;
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      
+      const yesterdayMeals = meals.filter(m => m.loggedDate === yesterdayStr);
+      const consumedYesterday = yesterdayMeals.reduce((sum, m) => sum + (m.calories * m.servings), 0);
+      
+      // Calculate yesterday's base target
+      let baseTarget = 2000;
+      const storedManual = localStorage.getItem(`nutriai_manual_targets_${user.id}`);
+      if (storedManual) {
+        const parsed = JSON.parse(storedManual);
+        if (parsed && parsed.targetCalories) {
+          baseTarget = parsed.targetCalories;
+        }
+      } else if (onboardingData) {
+        const calculated = calculateNutritionTargets(onboardingData);
+        baseTarget = calculated.targetCalories;
+      }
+      
+      const diff = baseTarget - consumedYesterday;
+      return Math.max(-500, Math.min(1000, Math.round(diff)));
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const rolloverCalories = getRolloverCalories();
+
+  const toggleRollover = () => {
+    if (!user) return;
+    const newVal = !isRolloverEnabled;
+    setIsRolloverEnabled(newVal);
+    localStorage.setItem(`nutriai_rollover_enabled_${user.id}`, JSON.stringify(newVal));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -796,6 +845,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toggleFavorite,
         addRecentSearch,
         resetAllData,
+        isRolloverEnabled,
+        toggleRollover,
+        rolloverCalories,
       }}
     >
       {children}
