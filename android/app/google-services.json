@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "219812492800",
+    "project_id": "zenlog-11984",
+    "storage_bucket": "zenlog-11984.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219812492800:android:74caa0d25deb244bf1cae5",
+        "android_client_info": {
+          "package_name": "com.nutriai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "219812492800-sgcqkb5tqv6bdu2habkcnsk464p01l45.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nutriai.app",
+            "certificate_hash": "9285eabad6256c79fda8c0d1936e2de87538f317"
+          }
+        },
+        {
+          "client_id": "219812492800-7ippsfdik24c7mma24c6s0hrgc2csgsh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN4EJI9qVLFvB8jROC4p2gLZTJTd5bfGM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "219812492800-7ippsfdik24c7mma24c6s0hrgc2csgsh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

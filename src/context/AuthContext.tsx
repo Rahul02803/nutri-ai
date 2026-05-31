@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Initialize Capawesome Google Sign-In
         await GoogleSignIn.initialize({
-          clientId: webClientId || "337076644265-d419p2v86k5b1h73489d0e744.apps.googleusercontent.com", // Web client ID
+          clientId: webClientId || "219812492800-7ippsfdik24c7mma24c6s0hrgc2csgsh.apps.googleusercontent.com", // Live Web client ID
           scopes: ["profile", "email"],
         });
 
