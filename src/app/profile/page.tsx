@@ -36,11 +36,11 @@ export default function ProfilePage() {
 
       {/* 1. PROFILE PROFILE CARD */}
       <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xs flex items-center space-x-4 relative overflow-hidden">
-        <div className="h-16 w-16 rounded-full bg-slate-100 border flex items-center justify-center shrink-0">
+        <div className="h-16 w-16 rounded-full bg-slate-100 border flex items-center justify-center shrink-0 overflow-hidden">
           <img
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email || "ZenLog")}`}
+            src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user.email || "ZenLog")}`}
             alt="Avatar"
-            className="h-14 w-14 rounded-full"
+            className="h-14 w-14 rounded-full object-cover"
           />
         </div>
         
@@ -59,12 +59,12 @@ export default function ProfilePage() {
         <div className="space-y-3 text-xs font-bold text-slate-700">
           <div className="flex justify-between items-center border-b border-slate-50 pb-2">
             <span className="text-slate-400 flex items-center gap-1.5"><Mail className="h-4 w-4" /> Email</span>
-            <span className="text-slate-800">{user.email}</span>
+            <span className="text-slate-800 font-mono text-[11px]">{user.email}</span>
           </div>
 
           <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-            <span className="text-slate-400 flex items-center gap-1.5"><Phone className="h-4 w-4" /> Mobile Number</span>
-            <span className="text-slate-800">{onboardingData?.challenge ? "+91 98765 43210" : "Not Linked"}</span>
+            <span className="text-slate-400 flex items-center gap-1.5"><Phone className="h-4 w-4" /> Auth Protocol</span>
+            <span className="text-slate-800">Google OAuth 2.0 Secure</span>
           </div>
 
           <div className="flex justify-between items-center border-b border-slate-50 pb-2">

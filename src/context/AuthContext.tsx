@@ -82,10 +82,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(SESSION_KEY, JSON.stringify(u));
         } catch (e) {
           console.error("Firestore user sync error", e);
-          // Graceful fallback to localstorage session if Firebase credentials are mock or offline
+          // If Firestore is offline or fails, check if we have a valid cached session for THIS specific logged-in user ID
           const cached = localStorage.getItem(SESSION_KEY);
           if (cached) {
-            setUser(JSON.parse(cached));
+            const parsed = JSON.parse(cached);
+            if (parsed && parsed.id === firebaseUser.uid) {
+              setUser(parsed);
+            } else {
+              setUser(null);
+            }
           } else {
             setUser(null);
           }
@@ -104,60 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       // Direct Secure Firebase Google Sign-In popup
-      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-        await signInWithPopup(auth, googleProvider);
-        setLoading(false);
-        return { success: true };
-      } else {
-        // Safe Google Sign-In Simulation for test/local environments with NO configuration keys
-        const mockUid = `google_${Math.random().toString(36).substring(2, 9)}`;
-        const mockEmail = "user@gmail.com";
-        const mockName = "Google User";
-        const mockPhoto = `https://api.dicebear.com/7.x/avataaars/svg?seed=${mockUid}`;
-
-        const u: User = {
-          id: mockUid,
-          email: mockEmail,
-          name: mockName,
-          photoURL: mockPhoto,
-          provider: "google",
-          role: "user",
-          isOnboarded: false,
-          createdAt: new Date().toISOString()
-        };
-
-        // Simulated DB Sync
-        const raw = localStorage.getItem("zenlog_database_users") || "[]";
-        const users: any[] = JSON.parse(raw);
-        const index = users.findIndex((item) => item.email === mockEmail);
-        const record = {
-          user_id: mockUid,
-          google_id: `g_${mockUid}`,
-          name: mockName,
-          email: mockEmail,
-          profile_picture: mockPhoto,
-          authentication_provider: "google",
-          created_at: index >= 0 ? users[index].created_at : new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_login: new Date().toISOString()
-        };
-
-        if (index >= 0) {
-          users[index] = { ...users[index], ...record };
-        } else {
-          users.push(record);
-        }
-        localStorage.setItem("zenlog_database_users", JSON.stringify(users));
-
-        setUser(u);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-        setLoading(false);
-        return { success: true };
-      }
+      await signInWithPopup(auth, googleProvider);
+      setLoading(false);
+      return { success: true };
     } catch (e: any) {
       setLoading(false);
       console.error("Firebase Sign-In Error", e);
-      let errorMsg = "Google Sign-In failed. Please try again.";
+      let errorMsg = "Google sign in failed. Please try again.";
       if (e.code === "auth/popup-closed-by-user") {
         errorMsg = "Login was cancelled. Please complete the popup window to log in.";
       } else if (e.code === "auth/network-request-failed") {
@@ -169,9 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-        await signOut(auth);
-      }
+      await signOut(auth);
     } catch (e) {
       console.error("Firebase Sign-Out Error", e);
     }
