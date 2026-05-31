@@ -29,7 +29,7 @@ export default function AdminPage() {
   useEffect(() => {
     setMounted(true);
     try {
-      const raw = localStorage.getItem("nutriai_database_users") || "[]";
+      const raw = localStorage.getItem("zenlog_database_users") || "[]";
       setUsersList(JSON.parse(raw));
     } catch (e) {
       setUsersList([]);

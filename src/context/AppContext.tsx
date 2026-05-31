@@ -176,13 +176,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const todayStr = new Date().toISOString().split("T")[0];
 
     try {
-      const storedRollover = localStorage.getItem(`nutriai_rollover_enabled_${user.id}`);
+      const storedRollover = localStorage.getItem(`zenlog_rollover_enabled_${user.id}`);
       setIsRolloverEnabled(storedRollover ? JSON.parse(storedRollover) : false);
     } catch (e) {}
 
     // 1. Load Onboarding Data & Calculate Targets
     try {
-      const storedOnboarding = localStorage.getItem(`nutriai_onboarding_${user.id}`);
+      const storedOnboarding = localStorage.getItem(`zenlog_onboarding_${user.id}`);
       let computedTargets: CalculatedTargets | null = null;
       if (storedOnboarding) {
         const parsed = JSON.parse(storedOnboarding);
@@ -195,7 +195,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      const storedManual = localStorage.getItem(`nutriai_manual_targets_${user.id}`);
+      const storedManual = localStorage.getItem(`zenlog_manual_targets_${user.id}`);
       if (storedManual) {
         const parsedManual = JSON.parse(storedManual);
         if (parsedManual) {
@@ -241,7 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Load Logged Meals
     try {
-      const storedMeals = localStorage.getItem(`nutriai_meals_${user.id}`);
+      const storedMeals = localStorage.getItem(`zenlog_meals_${user.id}`);
       if (storedMeals) {
         setMeals(JSON.parse(storedMeals) || []);
       } else {
@@ -253,7 +253,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 3. Load Water Logs
     try {
-      const storedWater = localStorage.getItem(`nutriai_water_${user.id}`);
+      const storedWater = localStorage.getItem(`zenlog_water_${user.id}`);
       if (storedWater) {
         setWaterLogged(parseInt(storedWater) || 0);
       } else {
@@ -265,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 4. Load Weight Logs
     try {
-      const storedWeights = localStorage.getItem(`nutriai_weights_${user.id}`);
+      const storedWeights = localStorage.getItem(`zenlog_weights_${user.id}`);
       if (storedWeights) {
         setWeightLogs(JSON.parse(storedWeights) || []);
       } else {
@@ -277,7 +277,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 5. Load Custom Food Catalog
     try {
-      const storedCatalog = localStorage.getItem(`nutriai_catalog_${user.id}`);
+      const storedCatalog = localStorage.getItem(`zenlog_catalog_${user.id}`);
       if (storedCatalog) {
         setFoodCatalog(JSON.parse(storedCatalog) || INITIAL_FOODS);
       }
@@ -287,7 +287,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 6. Load Favorites
     try {
-      const storedFavorites = localStorage.getItem(`nutriai_favorites_${user.id}`);
+      const storedFavorites = localStorage.getItem(`zenlog_favorites_${user.id}`);
       if (storedFavorites) {
         setFavorites(JSON.parse(storedFavorites) || []);
       }
@@ -297,7 +297,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 7. Load Recent Searches
     try {
-      const storedRecents = localStorage.getItem(`nutriai_recents_${user.id}`);
+      const storedRecents = localStorage.getItem(`zenlog_recents_${user.id}`);
       if (storedRecents) {
         setRecentSearches(JSON.parse(storedRecents) || []);
       }
@@ -307,7 +307,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 8. Load Custom Foods (for the dedicated My Foods tab)
     try {
-      const storedCustomFoods = localStorage.getItem(`nutriai_custom_foods_${user.id}`);
+      const storedCustomFoods = localStorage.getItem(`zenlog_custom_foods_${user.id}`);
       if (storedCustomFoods) {
         setCustomFoods(JSON.parse(storedCustomFoods) || []);
       }
@@ -317,13 +317,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 9. Fasting Clock Loading
     try {
-      const storedIsFasting = localStorage.getItem(`nutriai_fasting_isFasting_${user.id}`);
+      const storedIsFasting = localStorage.getItem(`zenlog_fasting_isFasting_${user.id}`);
       setIsFasting(storedIsFasting === "true");
       
-      const storedDuration = localStorage.getItem(`nutriai_fasting_duration_${user.id}`);
+      const storedDuration = localStorage.getItem(`zenlog_fasting_duration_${user.id}`);
       setFastingDuration(parseInt(storedDuration || "16"));
       
-      const storedStartTime = localStorage.getItem(`nutriai_fasting_startTime_${user.id}`);
+      const storedStartTime = localStorage.getItem(`zenlog_fasting_startTime_${user.id}`);
       setFastingStartTime(storedStartTime);
     } catch (e) {
       console.error(e);
@@ -331,7 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // 10. Steps Loading
     try {
-      const storedSteps = localStorage.getItem(`nutriai_steps_${user.id}`);
+      const storedSteps = localStorage.getItem(`zenlog_steps_${user.id}`);
       setSteps(parseInt(storedSteps || "0"));
     } catch (e) {
       console.error(e);
@@ -339,7 +339,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // 11. Workouts Loading
     try {
-      const storedWorkouts = localStorage.getItem(`nutriai_workouts_${user.id}`);
+      const storedWorkouts = localStorage.getItem(`zenlog_workouts_${user.id}`);
       if (storedWorkouts) {
         setWorkouts(JSON.parse(storedWorkouts));
       } else {
@@ -351,10 +351,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // 12. Streaks and Badges Loading
     try {
-      const storedStreak = localStorage.getItem(`nutriai_streak_${user.id}`);
+      const storedStreak = localStorage.getItem(`zenlog_streak_${user.id}`);
       setStreakCount(parseInt(storedStreak || "0"));
       
-      const storedBadges = localStorage.getItem(`nutriai_badges_${user.id}`);
+      const storedBadges = localStorage.getItem(`zenlog_badges_${user.id}`);
       if (storedBadges) {
         setUnlockedBadges(JSON.parse(storedBadges));
       } else {
@@ -400,7 +400,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (prev.some((b) => b.id === id)) return prev;
       const newBadge: Badge = { id, name, description, icon, unlockedDate: todayStr };
       const updated = [...prev, newBadge];
-      localStorage.setItem(`nutriai_badges_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`zenlog_badges_${user.id}`, JSON.stringify(updated));
       return updated;
     });
   };
@@ -411,13 +411,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unlockBadge("water_champ", "Hydration Master", "Drank over 3,000ml of water in a day", "💧");
     }
     if (meals.length > 0) {
-      unlockBadge("first_meal", "First Step", "Logged your first meal on NutriTrack AI", "🥗");
+      unlockBadge("first_meal", "First Step", "Logged your first meal on ZenLog", "🥗");
     }
     if (streakCount >= 3) {
       unlockBadge("streak_3", "Consistent Builder", "Maintained a solid 3-day health logging streak", "🔥");
     }
     if (streakCount >= 7) {
-      unlockBadge("streak_7", "NutriTrack Devotee", "Achieved an amazing 7-day health logging streak", "👑");
+      unlockBadge("streak_7", "ZenLog Devotee", "Achieved an amazing 7-day health logging streak", "👑");
     }
     if (workouts.length > 0) {
       unlockBadge("workout_warrior", "Iron Will", "Logged your first workout session", "💪");
@@ -433,9 +433,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFastingStartTime(nowStr);
     setFastingElapsedTime(0);
     
-    localStorage.setItem(`nutriai_fasting_isFasting_${user.id}`, "true");
-    localStorage.setItem(`nutriai_fasting_duration_${user.id}`, durationHours.toString());
-    localStorage.setItem(`nutriai_fasting_startTime_${user.id}`, nowStr);
+    localStorage.setItem(`zenlog_fasting_isFasting_${user.id}`, "true");
+    localStorage.setItem(`zenlog_fasting_duration_${user.id}`, durationHours.toString());
+    localStorage.setItem(`zenlog_fasting_startTime_${user.id}`, nowStr);
   };
 
   const stopFasting = () => {
@@ -444,8 +444,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFastingStartTime(null);
     setFastingElapsedTime(0);
     
-    localStorage.setItem(`nutriai_fasting_isFasting_${user.id}`, "false");
-    localStorage.removeItem(`nutriai_fasting_startTime_${user.id}`);
+    localStorage.setItem(`zenlog_fasting_isFasting_${user.id}`, "false");
+    localStorage.removeItem(`zenlog_fasting_startTime_${user.id}`);
     
     unlockBadge("fasting_champion", "Autophagy Hero", "Completed a scheduled fasting cycle", "⏳");
   };
@@ -456,15 +456,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFastingStartTime(null);
     setFastingElapsedTime(0);
     
-    localStorage.setItem(`nutriai_fasting_isFasting_${user.id}`, "false");
-    localStorage.removeItem(`nutriai_fasting_startTime_${user.id}`);
+    localStorage.setItem(`zenlog_fasting_isFasting_${user.id}`, "false");
+    localStorage.removeItem(`zenlog_fasting_startTime_${user.id}`);
   };
 
   // Steps controller
   const syncSteps = (newSteps: number) => {
     if (!user) return;
     setSteps(newSteps);
-    localStorage.setItem(`nutriai_steps_${user.id}`, newSteps.toString());
+    localStorage.setItem(`zenlog_steps_${user.id}`, newSteps.toString());
     
     if (newSteps >= 10000) {
       unlockBadge("step_master", "10K Club", "Walked over 10,000 steps in a single day", "👟");
@@ -485,14 +485,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     const updated = [newWorkout, ...workouts];
     setWorkouts(updated);
-    localStorage.setItem(`nutriai_workouts_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_workouts_${user.id}`, JSON.stringify(updated));
   };
 
   const deleteWorkout = (id: string) => {
     if (!user) return;
     const updated = workouts.filter((w) => w.id !== id);
     setWorkouts(updated);
-    localStorage.setItem(`nutriai_workouts_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_workouts_${user.id}`, JSON.stringify(updated));
   };
 
   // Saves Onboarding Inputs
@@ -502,8 +502,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const computedTargets = calculateNutritionTargets(data);
     setTargets(computedTargets);
 
-    localStorage.setItem(`nutriai_onboarding_${user.id}`, JSON.stringify(data));
-    localStorage.removeItem(`nutriai_manual_targets_${user.id}`);
+    localStorage.setItem(`zenlog_onboarding_${user.id}`, JSON.stringify(data));
+    localStorage.removeItem(`zenlog_manual_targets_${user.id}`);
     updateUserOnboardStatus(true);
 
     try {
@@ -511,7 +511,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const currentLogs = weightLogs || [];
       const newLogs = [...currentLogs.filter((w) => w && w.date !== todayStr), { weight: data.currentWeight, date: todayStr }];
       setWeightLogs(newLogs);
-      localStorage.setItem(`nutriai_weights_${user.id}`, JSON.stringify(newLogs));
+      localStorage.setItem(`zenlog_weights_${user.id}`, JSON.stringify(newLogs));
     } catch (e) {
       console.error("Weight log sync failure", e);
     }
@@ -566,7 +566,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const updated = [newMeal, ...meals];
     setMeals(updated);
-    localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_meals_${user.id}`, JSON.stringify(updated));
   };
 
   // Deletes a Logged Meal
@@ -574,7 +574,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const updated = meals.filter((meal) => meal.id !== id);
     setMeals(updated);
-    localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_meals_${user.id}`, JSON.stringify(updated));
   };
 
   // Hydration tracking
@@ -582,7 +582,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const updated = Math.max(0, waterLogged + amountMl);
     setWaterLogged(updated);
-    localStorage.setItem(`nutriai_water_${user.id}`, updated.toString());
+    localStorage.setItem(`zenlog_water_${user.id}`, updated.toString());
   };
 
   // Logs Daily Weight
@@ -593,15 +593,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
     setWeightLogs(updatedLogs);
-    localStorage.setItem(`nutriai_weights_${user.id}`, JSON.stringify(updatedLogs));
+    localStorage.setItem(`zenlog_weights_${user.id}`, JSON.stringify(updatedLogs));
 
     if (onboardingData) {
       const updatedOnboarding = { ...onboardingData, currentWeight: weight };
       setOnboardingData(updatedOnboarding);
-      localStorage.setItem(`nutriai_onboarding_${user.id}`, JSON.stringify(updatedOnboarding));
+      localStorage.setItem(`zenlog_onboarding_${user.id}`, JSON.stringify(updatedOnboarding));
       const computedTargets = calculateNutritionTargets(updatedOnboarding);
       
-      const storedManual = localStorage.getItem(`nutriai_manual_targets_${user.id}`);
+      const storedManual = localStorage.getItem(`zenlog_manual_targets_${user.id}`);
       if (storedManual) {
         const parsedManual = JSON.parse(storedManual);
         if (parsedManual) {
@@ -631,22 +631,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     const updatedCatalog = [newFood, ...foodCatalog];
     setFoodCatalog(updatedCatalog);
-    localStorage.setItem(`nutriai_catalog_${user.id}`, JSON.stringify(updatedCatalog));
+    localStorage.setItem(`zenlog_catalog_${user.id}`, JSON.stringify(updatedCatalog));
 
     const updatedCustom = [newFood, ...customFoods];
     setCustomFoods(updatedCustom);
-    localStorage.setItem(`nutriai_custom_foods_${user.id}`, JSON.stringify(updatedCustom));
+    localStorage.setItem(`zenlog_custom_foods_${user.id}`, JSON.stringify(updatedCustom));
   };
 
   const deleteFoodFromCatalog = (id: string) => {
     if (!user) return;
     const updatedCatalog = foodCatalog.filter((f) => f.id !== id);
     setFoodCatalog(updatedCatalog);
-    localStorage.setItem(`nutriai_catalog_${user.id}`, JSON.stringify(updatedCatalog));
+    localStorage.setItem(`zenlog_catalog_${user.id}`, JSON.stringify(updatedCatalog));
 
     const updatedCustom = customFoods.filter((f) => f.id !== id);
     setCustomFoods(updatedCustom);
-    localStorage.setItem(`nutriai_custom_foods_${user.id}`, JSON.stringify(updatedCustom));
+    localStorage.setItem(`zenlog_custom_foods_${user.id}`, JSON.stringify(updatedCustom));
   };
 
   // Toggle favorites mapping
@@ -660,7 +660,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updated = [food, ...favorites];
     }
     setFavorites(updated);
-    localStorage.setItem(`nutriai_favorites_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_favorites_${user.id}`, JSON.stringify(updated));
   };
 
   // Add recent search cache
@@ -669,7 +669,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const cleanQuery = query.trim();
     const updated = [cleanQuery, ...recentSearches.filter((q) => q.toLowerCase() !== cleanQuery.toLowerCase())].slice(0, 10);
     setRecentSearches(updated);
-    localStorage.setItem(`nutriai_recents_${user.id}`, JSON.stringify(updated));
+    localStorage.setItem(`zenlog_recents_${user.id}`, JSON.stringify(updated));
   };
 
   // Manual override custom target values
@@ -681,7 +681,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       targetCarbs: carb,
       targetFat: fat
     };
-    localStorage.setItem(`nutriai_manual_targets_${user.id}`, JSON.stringify(manual));
+    localStorage.setItem(`zenlog_manual_targets_${user.id}`, JSON.stringify(manual));
     
     setTargets(prev => {
       const base = prev || {
@@ -710,22 +710,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
 
     // 1. Clear LocalStorage first!
-    localStorage.removeItem(`nutriai_onboarding_${user.id}`);
-    localStorage.removeItem(`nutriai_meals_${user.id}`);
-    localStorage.removeItem(`nutriai_water_${user.id}`);
-    localStorage.removeItem(`nutriai_weights_${user.id}`);
-    localStorage.removeItem(`nutriai_catalog_${user.id}`);
-    localStorage.removeItem(`nutriai_manual_targets_${user.id}`);
-    localStorage.removeItem(`nutriai_favorites_${user.id}`);
-    localStorage.removeItem(`nutriai_recents_${user.id}`);
-    localStorage.removeItem(`nutriai_custom_foods_${user.id}`);
-    localStorage.removeItem(`nutriai_fasting_isFasting_${user.id}`);
-    localStorage.removeItem(`nutriai_fasting_duration_${user.id}`);
-    localStorage.removeItem(`nutriai_fasting_startTime_${user.id}`);
-    localStorage.removeItem(`nutriai_steps_${user.id}`);
-    localStorage.removeItem(`nutriai_workouts_${user.id}`);
-    localStorage.removeItem(`nutriai_streak_${user.id}`);
-    localStorage.removeItem(`nutriai_badges_${user.id}`);
+    localStorage.removeItem(`zenlog_onboarding_${user.id}`);
+    localStorage.removeItem(`zenlog_meals_${user.id}`);
+    localStorage.removeItem(`zenlog_water_${user.id}`);
+    localStorage.removeItem(`zenlog_weights_${user.id}`);
+    localStorage.removeItem(`zenlog_catalog_${user.id}`);
+    localStorage.removeItem(`zenlog_manual_targets_${user.id}`);
+    localStorage.removeItem(`zenlog_favorites_${user.id}`);
+    localStorage.removeItem(`zenlog_recents_${user.id}`);
+    localStorage.removeItem(`zenlog_custom_foods_${user.id}`);
+    localStorage.removeItem(`zenlog_fasting_isFasting_${user.id}`);
+    localStorage.removeItem(`zenlog_fasting_duration_${user.id}`);
+    localStorage.removeItem(`zenlog_fasting_startTime_${user.id}`);
+    localStorage.removeItem(`zenlog_steps_${user.id}`);
+    localStorage.removeItem(`zenlog_workouts_${user.id}`);
+    localStorage.removeItem(`zenlog_streak_${user.id}`);
+    localStorage.removeItem(`zenlog_badges_${user.id}`);
 
     // 2. Reset React states
     setOnboardingData(null);
@@ -771,7 +771,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       // Calculate yesterday's base target
       let baseTarget = 2000;
-      const storedManual = localStorage.getItem(`nutriai_manual_targets_${user.id}`);
+      const storedManual = localStorage.getItem(`zenlog_manual_targets_${user.id}`);
       if (storedManual) {
         const parsed = JSON.parse(storedManual);
         if (parsed && parsed.targetCalories) {
@@ -795,7 +795,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const newVal = !isRolloverEnabled;
     setIsRolloverEnabled(newVal);
-    localStorage.setItem(`nutriai_rollover_enabled_${user.id}`, JSON.stringify(newVal));
+    localStorage.setItem(`zenlog_rollover_enabled_${user.id}`, JSON.stringify(newVal));
   };
 
   return (

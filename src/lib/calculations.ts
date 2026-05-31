@@ -1,5 +1,5 @@
 /**
- * NutriTrack AI Core Mathematics & Calculation Engine
+ * ZenLog Core Mathematics & Calculation Engine
  * Inspired by clinical dietetics (Mifflin-St Jeor Equation)
  */
 

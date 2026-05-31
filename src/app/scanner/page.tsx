@@ -156,12 +156,12 @@ export default function ScannerPage() {
     const todayStr = new Date().toISOString().split("T")[0];
     setTimeout(() => {
       try {
-        const stored = localStorage.getItem(`nutriai_meals_${user.id}`);
+        const stored = localStorage.getItem(`zenlog_meals_${user.id}`);
         if (stored) {
           const parsed: LoggedMeal[] = JSON.parse(stored);
           if (parsed.length > 0 && parsed[parsed.length - 1].loggedDate !== todayStr) {
             parsed[parsed.length - 1].loggedDate = todayStr;
-            localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(parsed));
+            localStorage.setItem(`zenlog_meals_${user.id}`, JSON.stringify(parsed));
           }
         }
       } catch (e) {

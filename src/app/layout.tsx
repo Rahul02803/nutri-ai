@@ -19,7 +19,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NutriTrack AI - Premium AI Fitness & Nutrition Tracker",
+  title: "ZenLog - Premium AI Fitness & Nutrition Tracker",
   description: "Track calories, scan meals with AI, monitor intermittent fasting, steps, and log strength workouts in a beautiful ultra-minimal modern canvas.",
 };
 
@@ -42,7 +42,7 @@ export default function RootLayout({
             </main>
             <BottomNavBar />
             <footer className="py-8 text-center text-xs text-[#8D8D92] border-t border-slate-100 bg-[#F8F8FA]">
-              <p>© {new Date().getFullYear()} NutriTrack AI. Cal AI Premium Nutrition. All rights reserved.</p>
+              <p>© {new Date().getFullYear()} ZenLog. Cal AI Premium Nutrition. All rights reserved.</p>
             </footer>
           </AppProvider>
         </AuthProvider>

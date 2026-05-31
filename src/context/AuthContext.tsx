@@ -52,9 +52,9 @@ interface AuthContextType {
 }
 
 // ─── Storage Constants ─────────────────────────────────────────────────────────
-const SESSION_KEY   = "nutriai_session_v2";
-const OTP_KEY       = "nutriai_otp_session_v2";
-const EMAIL_OTP_KEY = "nutriai_email_otp_session_v2";
+const SESSION_KEY   = "zenlog_session_v2";
+const OTP_KEY       = "zenlog_otp_session_v2";
+const EMAIL_OTP_KEY = "zenlog_email_otp_session_v2";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ function isSessionValid(u: User): boolean {
 }
 
 function makeUser(overrides: Partial<User> & { email: string; name: string }): User {
-  const isAdmin = ["admin@nutriai.com", "admin@nutritrack.com"].includes(
+  const isAdmin = ["admin@zenlog.com", "admin@nutritrack.com"].includes(
     overrides.email.toLowerCase()
   );
   return {
@@ -108,7 +108,7 @@ function makeUser(overrides: Partial<User> & { email: string; name: string }): U
 }
 
 function accountKey(email: string): string {
-  return `nutriai_account_${email.toLowerCase().replace(/[^a-z0-9@.]/g, "_")}`;
+  return `zenlog_account_${email.toLowerCase().replace(/[^a-z0-9@.]/g, "_")}`;
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function syncUserToDatabase(u: User) {
     try {
-      const raw = localStorage.getItem("nutriai_database_users") || "[]";
+      const raw = localStorage.getItem("zenlog_database_users") || "[]";
       const users: any[] = JSON.parse(raw);
       const index = users.findIndex((item) => item.user_id === u.id || (u.email && item.email === u.email));
       const nowStr = new Date().toISOString();
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user_id: u.id,
         google_id: u.provider === "google" ? `g_${u.id}` : (index >= 0 ? users[index].google_id : undefined),
         name: u.name,
-        email: u.email || `${u.id}@phone.nutriai.app`,
+        email: u.email || `${u.id}@phone.zenlog.app`,
         profile_picture: u.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
         authentication_provider: u.provider,
         created_at: index >= 0 ? users[index].created_at || nowStr : nowStr,
@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         users.push(record);
       }
       
-      localStorage.setItem("nutriai_database_users", JSON.stringify(users));
+      localStorage.setItem("zenlog_database_users", JSON.stringify(users));
     } catch (e) {
       console.error("Failed to sync user to database", e);
     }
@@ -323,7 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     await delay(900);
 
-    const appleSessionKey = "nutriai_account_apple_private_relay";
+    const appleSessionKey = "zenlog_account_apple_private_relay";
     try {
       const raw = localStorage.getItem(appleSessionKey);
       let u: User;
@@ -377,7 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           number: `+91${clean}`,
-          message: `Your NutriTrack verification OTP is ${code}. Valid for 5 minutes.`,
+          message: `Your ZenLog verification OTP is ${code}. Valid for 5 minutes.`,
           key: "textbelt"
         })
       });
@@ -476,7 +476,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(OTP_KEY);
     setPendingOtp(null);
 
-    const phoneKey = `nutriai_account_phone_${cleanPhone}`;
+    const phoneKey = `zenlog_account_phone_${cleanPhone}`;
     let u: User;
     try {
       const rawUser = localStorage.getItem(phoneKey);
@@ -486,7 +486,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(phoneKey, JSON.stringify(u));
       } else {
         u = makeUser({
-          email:    `ph_${cleanPhone}@phone.nutriai.app`,
+          email:    `ph_${cleanPhone}@phone.zenlog.app`,
           name:     `User ${cleanPhone.slice(-4)}`,
           phone:    `+91${cleanPhone}`,
           provider: "phone",
@@ -639,7 +639,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated: User = { ...user, isOnboarded: status };
     persist(updated);
     const key = user.provider === "phone"
-      ? `nutriai_account_phone_${(user.phone || "").replace(/\D/g, "")}`
+      ? `zenlog_account_phone_${(user.phone || "").replace(/\D/g, "")}`
       : accountKey(user.email);
     try {
       const raw = localStorage.getItem(key);
@@ -657,7 +657,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (email: string, name: string): Promise<boolean> => {
-    const result = await signupWithEmail(email, name, "nutriai_user_pass");
+    const result = await signupWithEmail(email, name, "zenlog_user_pass");
     return result.success;
   };
 

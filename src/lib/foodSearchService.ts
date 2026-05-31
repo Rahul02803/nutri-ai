@@ -1,5 +1,5 @@
 /**
- * NutriTrack Premium Client-Side Unified Food Search & AI Vision Service
+ * ZenLog Premium Client-Side Unified Food Search & AI Vision Service
  * Fully optimized for static standalone export and Capacitor mobile APK deployments.
  */
 

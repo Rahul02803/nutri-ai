@@ -74,7 +74,7 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center gap-4 pt-4">
               <a
-                href="/NutriAI.apk"
+                href="/ZenLog.apk"
                 download
                 className="px-8 py-4 rounded-2xl bg-[#111827] text-white font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] flex items-center space-x-2"
               >
@@ -307,7 +307,7 @@ export default function LandingPage() {
 
           <div className="flex justify-center pt-4">
             <a
-              href="/NutriAI.apk"
+              href="/ZenLog.apk"
               download
               className="px-8 py-4 rounded-2xl bg-white text-[#111827] font-extrabold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md pulse-light flex items-center space-x-2"
             >
