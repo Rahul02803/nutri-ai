@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Sparkles, 
   Camera, 
@@ -19,6 +20,20 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if running inside Capacitor mobile native wrapper and redirect to Splash
+    const isCapacitor = typeof window !== "undefined" && (
+      (window as any).Capacitor !== undefined ||
+      window.location.protocol === "file:" ||
+      navigator.userAgent.includes("Capacitor")
+    );
+    if (isCapacitor) {
+      router.push("/splash");
+    }
+  }, [router]);
+
   const [darkMode, setDarkMode] = useState(true); // Default to premium dark mode
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [interactiveGrams, setInteractiveGrams] = useState(100);

@@ -33,3 +33,6 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase Private Secrets
+serviceAccountKey.json

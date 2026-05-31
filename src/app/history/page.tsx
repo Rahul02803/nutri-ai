@@ -3,10 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function AuthRedirect() {
+export default function HistoryRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/login");
+    router.replace("/progress");
   }, [router]);
 
   return null;
