@@ -11,8 +11,8 @@ export default function NavigationHeader() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Hide nav on onboarding page to keep user focused
-  if (pathname === "/onboarding" || pathname === "/auth") return null;
+  // Hide nav on onboarding page and homepage to keep layout clean and allow custom landing page header
+  if (pathname === "/onboarding" || pathname === "/auth" || pathname === "/") return null;
 
   const handleLogout = () => {
     logout();
@@ -89,7 +89,7 @@ export default function NavigationHeader() {
               </div>
             ) : (
               <a
-                href="/ZenLog.apk"
+                href="https://github.com/Rahul02803/ZenLog/raw/main/public/ZenLog.apk"
                 download
                 className="flex items-center space-x-1.5 px-5 py-2.5 rounded-2xl bg-slate-900 text-xs font-bold text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
