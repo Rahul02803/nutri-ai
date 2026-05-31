@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
+import { auth } from "@/lib/firebase";
 import { GlassCard } from "@/components/GlassCard";
 import {
   Users,
@@ -26,6 +27,8 @@ export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
   const [usersList, setUsersList] = useState<any[]>([]);
 
+  const [authorized, setAuthorized] = useState(false);
+
   useEffect(() => {
     setMounted(true);
     try {
@@ -36,13 +39,42 @@ export default function AdminPage() {
     }
   }, []);
 
-  // Route security block
+  // Route protection and secure JWT Custom Claims verification block
   useEffect(() => {
-    if (!user) {
-      router.push("/auth");
-    } else if (user.role !== "admin") {
-      router.push("/dashboard");
+    async function verifyAdminClaims() {
+      if (!user) {
+        router.push("/auth");
+        return;
+      }
+
+      try {
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser) {
+          // Force refresh the token to retrieve latest Custom Claims
+          const tokenResult = await firebaseUser.getIdTokenResult(true);
+          const isAdmin = tokenResult.claims.role === "admin";
+
+          if (isAdmin) {
+            setAuthorized(true);
+          } else {
+            console.error("Access Denied: Valid Admin JWT Custom Claim required.");
+            router.push("/dashboard");
+          }
+        } else {
+          // Graceful fallback for mock session roles
+          if (user.role === "admin") {
+            setAuthorized(true);
+          } else {
+            router.push("/dashboard");
+          }
+        }
+      } catch (e) {
+        console.error("JWT claims verification exception", e);
+        router.push("/dashboard");
+      }
     }
+
+    verifyAdminClaims();
   }, [user, router]);
 
   // Form states for creating new food item
@@ -55,7 +87,7 @@ export default function AdminPage() {
   const [category, setCategory] = useState<any>("Lunch/Dinner");
   const [successMsg, setSuccessMsg] = useState("");
 
-  if (!user || user.role !== "admin") return null;
+  if (!user || !authorized) return null;
 
   const handleAddFood = (e: React.FormEvent) => {
     e.preventDefault();

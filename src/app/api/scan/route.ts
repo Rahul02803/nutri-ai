@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { INITIAL_FOODS } from "@/lib/foods";
 
 export async function POST(req: Request) {
   try {
     const { imageBase64, mimeType, clientApiKey } = await req.json();
 
-    // Prioritize client-provided key from localStorage, fall back to environment variable
     const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -18,22 +18,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing imageBase64 payload" }, { status: 400 });
     }
 
-    // Official Google Gemini API endpoint (gemini-1.5-flash for maximum vision speed and reliability)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    const promptText = `Analyze this food image. Estimate its nutritional value.
-Provide your response strictly in raw JSON format with the following fields:
+    // Strict prompt strictly forbidding calorie and macro estimation from AI
+    const promptText = `Analyze this image and identify food items.
+Return ONLY JSON.
+
 {
-  "foodName": "A descriptive name of the food item detected",
-  "calories": 350, // estimated total calories as a number
-  "protein": 15, // estimated protein in grams as a number
-  "carbs": 45, // estimated carbohydrate in grams as a number
-  "fat": 12, // estimated fat in grams as a number
-  "estimatedWeightGrams": 250 // estimated portion weight in grams
+  "foods":[
+    {
+      "name":"",
+      "confidence":0
+    }
+  ]
 }
-IMPORTANT: Do not wrap your response in markdown code blocks like \`\`\`json or \`\`\`. Return ONLY a clean, valid JSON string.`;
+
+Do not estimate calories.
+Do not estimate macros.
+Only identify visible foods.`;
 
     const payload = {
       contents: [
@@ -51,7 +54,7 @@ IMPORTANT: Do not wrap your response in markdown code blocks like \`\`\`json or 
       ],
       generationConfig: {
         maxOutputTokens: 250,
-        temperature: 0.2,
+        temperature: 0.1,
         responseMimeType: "application/json"
       }
     };
@@ -77,12 +80,55 @@ IMPORTANT: Do not wrap your response in markdown code blocks like \`\`\`json or 
       return NextResponse.json({ error: "Failed to receive food parsing from Gemini." }, { status: 500 });
     }
 
-    // Safely parse JSON structure from text
     try {
       const parsedData = JSON.parse(replyText.trim());
-      return NextResponse.json({ success: true, data: parsedData });
+      const foods = parsedData.foods || [];
+
+      if (foods.length === 0) {
+        return NextResponse.json({ error: "No food items could be identified in this image." }, { status: 400 });
+      }
+
+      // Step 4 & 5: Food database lookup & calculate calories and macros
+      const identified = foods[0]; // Primary identified food item
+      const identifiedName = (identified.name || "").trim().toLowerCase();
+      const confidence = parseFloat(identified.confidence) || 0;
+
+      // Smart database lookup check name and aliases
+      let matchedItem = INITIAL_FOODS.find((item) => {
+        const itemName = item.name.toLowerCase();
+        const aliasMatch = item.aliases?.some((alias) => identifiedName.includes(alias.toLowerCase()) || alias.toLowerCase().includes(identifiedName));
+        return itemName.includes(identifiedName) || identifiedName.includes(itemName) || aliasMatch;
+      });
+
+      // Default fallback if not found in database (e.g. estimate generic fallback)
+      if (!matchedItem) {
+        matchedItem = {
+          id: "generic-match",
+          name: identified.name || "Identified Meal",
+          servingSize: "1 serving (150g)",
+          calories: 280,
+          protein: 8,
+          carbs: 35,
+          fat: 10,
+          category: "Other"
+        };
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          foodName: matchedItem.name,
+          calories: matchedItem.calories,
+          protein: matchedItem.protein,
+          carbs: matchedItem.carbs,
+          fat: matchedItem.fat,
+          servingSize: matchedItem.servingSize,
+          confidence: confidence
+        }
+      });
+
     } catch (e) {
-      return NextResponse.json({ success: true, rawText: replyText });
+      return NextResponse.json({ error: "Failed to parse structured JSON output from Gemini." }, { status: 500 });
     }
 
   } catch (error: any) {

@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useApp, LoggedMeal } from "@/context/AppContext";
-import { Camera, Image as ImageIcon, Check, Play, Edit3, X, Sparkles, Key, AlertCircle } from "lucide-react";
+import { useApp } from "@/context/AppContext";
+import { Camera, Image as ImageIcon, Check, Play, Edit3, X, Sparkles, Key, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ScannerPage() {
@@ -19,12 +19,23 @@ export default function ScannerPage() {
   const [isKeySaved, setIsKeySaved] = useState(false);
 
   // Results form states
-  const [foodName, setFoodName] = useState("Paneer Butter Masala & 2 Wheat Roti");
-  const [calories, setCalories] = useState("450");
-  const [protein, setProtein] = useState("22");
-  const [carbs, setCarbs] = useState("38");
-  const [fat, setFat] = useState("14");
+  const [foodName, setFoodName] = useState("");
+  const [calories, setCalories] = useState("0");
+  const [protein, setProtein] = useState("0");
+  const [carbs, setCarbs] = useState("0");
+  const [fat, setFat] = useState("0");
   const [servings, setServings] = useState("1");
+  const [unit, setUnit] = useState("serving");
+
+  // Base values for live macro recalculations
+  const [baseCalories, setBaseCalories] = useState(0);
+  const [baseProtein, setBaseProtein] = useState(0);
+  const [baseCarbs, setBaseCarbs] = useState(0);
+  const [baseFat, setBaseFat] = useState(0);
+
+  // Confidence & Warning
+  const [confidence, setConfidence] = useState(1);
+  const [lowConfidenceWarning, setLowConfidenceWarning] = useState(false);
 
   // Error/Info Banner States
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -50,6 +61,15 @@ export default function ScannerPage() {
       router.push("/auth");
     }
   }, [user, router]);
+
+  // Live macro scaling when servings or portion is edited
+  useEffect(() => {
+    const factor = parseFloat(servings) || 0;
+    setCalories(Math.round(baseCalories * factor).toString());
+    setProtein(Math.round(baseProtein * factor).toString());
+    setCarbs(Math.round(baseCarbs * factor).toString());
+    setFat(Math.round(baseFat * factor).toString());
+  }, [servings, baseCalories, baseProtein, baseCarbs, baseFat]);
 
   if (!user) return null;
 
@@ -116,11 +136,15 @@ export default function ScannerPage() {
 
       if (resData.success && resData.data) {
         const parsed = resData.data;
+        const conf = parsed.confidence !== undefined ? parsed.confidence : 1;
+
         setFoodName(parsed.foodName || "Estimated Meal");
-        setCalories((parsed.calories || 300).toString());
-        setProtein((parsed.protein || 10).toString());
-        setCarbs((parsed.carbs || 35).toString());
-        setFat((parsed.fat || 8).toString());
+        setBaseCalories(parsed.calories || 300);
+        setBaseProtein(parsed.protein || 10);
+        setBaseCarbs(parsed.carbs || 35);
+        setBaseFat(parsed.fat || 8);
+        setConfidence(conf);
+        setLowConfidenceWarning(conf < 0.70); // <70% triggers warning block
         setServings("1");
         setScanState("results");
       } else {
@@ -152,23 +176,7 @@ export default function ScannerPage() {
       serv
     );
 
-    // Save meal log timestamp fallback for calendar synchronization
-    const todayStr = new Date().toISOString().split("T")[0];
-    setTimeout(() => {
-      try {
-        const stored = localStorage.getItem(`zenlog_meals_${user.id}`);
-        if (stored) {
-          const parsed: LoggedMeal[] = JSON.parse(stored);
-          if (parsed.length > 0 && parsed[parsed.length - 1].loggedDate !== todayStr) {
-            parsed[parsed.length - 1].loggedDate = todayStr;
-            localStorage.setItem(`zenlog_meals_${user.id}`, JSON.stringify(parsed));
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-      router.push("/dashboard");
-    }, 100);
+    router.push("/dashboard");
   };
 
   return (
@@ -241,7 +249,7 @@ export default function ScannerPage() {
       {/* Error notification banner */}
       {errorText && (
         <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-left flex items-start space-x-2 text-rose-700">
-          <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold">Scan Failed</p>
             <p className="text-[10px] text-rose-600 mt-0.5">{errorText}</p>
@@ -268,7 +276,7 @@ export default function ScannerPage() {
 
       <AnimatePresence mode="wait">
         
-        {/* VIEW 1: SIMULATED CAMERA VIEWPORT */}
+        {/* VIEW 1: CAMERA VIEWPORT */}
         {scanState === "viewport" && (
           <motion.div
             key="viewport"
@@ -277,19 +285,16 @@ export default function ScannerPage() {
             exit={{ opacity: 0 }}
             className="space-y-4"
           >
-            {/* Viewport container */}
             <div className="h-96 w-full bg-[#111115] rounded-[32px] overflow-hidden relative flex flex-col justify-between p-6 border-4 border-slate-900 shadow-md">
               <div className="flex justify-between items-center text-white/50 text-[10px] font-mono">
                 <span>[ 4K MULTIMODAL SCAN ]</span>
                 <span className="animate-pulse text-[#14B8A6] font-bold">● ONLINE READY</span>
               </div>
 
-              {/* Align grid brackets in center */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
                 <div className="h-44 w-44 border-2 border-white rounded-2xl" />
               </div>
 
-              {/* Overlay simulation context */}
               <div className="text-center z-10 text-white/60 space-y-1">
                 <p className="text-xs font-bold">ZenLog Visual Assessment</p>
                 <p className="text-[9px] max-w-[200px] mx-auto">
@@ -297,9 +302,7 @@ export default function ScannerPage() {
                 </p>
               </div>
 
-              {/* Footer capture buttons */}
               <div className="flex justify-around items-center pt-4 z-10">
-                {/* Gallery Option */}
                 <button
                   onClick={triggerFileInput}
                   className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
@@ -308,16 +311,14 @@ export default function ScannerPage() {
                   <ImageIcon className="h-5 w-5" />
                 </button>
 
-                {/* Main Capture Trigger (simulated by triggering file browser) */}
                 <button
                   onClick={triggerFileInput}
                   className="h-16 w-16 rounded-full bg-[#111827] border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
                   title="Capture Plate"
                 >
-                  <div className="h-8 w-8 rounded-full bg-[#14B8A6]" />
+                  <div className="h-8 w-8 rounded-full bg-[#3B82F6]" />
                 </button>
 
-                {/* Manual entry fallback */}
                 <button
                   onClick={() => setScanState("results")}
                   className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
@@ -330,7 +331,7 @@ export default function ScannerPage() {
           </motion.div>
         )}
 
-        {/* VIEW 2: GEMINI AI VISION ANALYZING */}
+        {/* VIEW 2: AI VISION ANALYZING */}
         {scanState === "analyzing" && (
           <motion.div
             key="analyzing"
@@ -342,12 +343,12 @@ export default function ScannerPage() {
             <div className="relative h-20 w-20 flex items-center justify-center">
               <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
               <div className="absolute inset-0 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
-              <Sparkles className="h-7 w-7 text-[#14B8A6] animate-pulse" />
+              <Sparkles className="h-7 w-7 text-[#3B82F6] animate-pulse" />
             </div>
 
             <div className="space-y-2">
               <h3 className="font-outfit text-md font-extrabold text-slate-800">Gemini 1.5 Flash Vision</h3>
-              <p className="text-[10px] text-slate-400 font-mono pulse-light">Calling API endpoint & extracting structured nutrition counts...</p>
+              <p className="text-[10px] text-slate-400 font-mono pulse-light">Scanning food items & matching against nutrition database...</p>
             </div>
           </motion.div>
         )}
@@ -374,6 +375,19 @@ export default function ScannerPage() {
               </button>
             </div>
 
+            {/* Low Confidence warning block */}
+            {lowConfidenceWarning && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100 flex items-start space-x-2.5 text-amber-800 text-[10.5px]">
+                <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <p className="font-extrabold">Not Fully Confident ({Math.round(confidence * 100)}%)</p>
+                  <p className="text-amber-700 mt-0.5 leading-relaxed">
+                    We are not fully confident. Please confirm or correct the food selection below.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSaveMeal} className="space-y-4 text-xs font-bold text-slate-700">
               
               <div className="space-y-1">
@@ -387,9 +401,9 @@ export default function ScannerPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label>Portion (Servings)</label>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1 col-span-1">
+                  <label>Serving Size</label>
                   <input
                     type="number"
                     step="0.1"
@@ -399,14 +413,28 @@ export default function ScannerPage() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label>Total Calories (kcal)</label>
+                <div className="space-y-1 col-span-1">
+                  <label>Unit</label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-2 focus:outline-none font-bold"
+                  >
+                    <option value="serving">serving</option>
+                    <option value="grams">g</option>
+                    <option value="bowl">bowl</option>
+                    <option value="plate">plate</option>
+                    <option value="pieces">pcs</option>
+                  </select>
+                </div>
+                <div className="space-y-1 col-span-1">
+                  <label>Calories (kcal)</label>
                   <input
                     type="number"
                     required
                     value={calories}
                     onChange={(e) => setCalories(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none font-mono"
                   />
                 </div>
               </div>
@@ -419,7 +447,7 @@ export default function ScannerPage() {
                     required
                     value={protein}
                     onChange={(e) => setProtein(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
                   />
                 </div>
                 <div className="space-y-1">
@@ -429,7 +457,7 @@ export default function ScannerPage() {
                     required
                     value={carbs}
                     onChange={(e) => setCarbs(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
                   />
                 </div>
                 <div className="space-y-1">
@@ -439,7 +467,7 @@ export default function ScannerPage() {
                     required
                     value={fat}
                     onChange={(e) => setFat(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
                   />
                 </div>
               </div>

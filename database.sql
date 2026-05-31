@@ -22,6 +22,7 @@ CREATE TABLE public.profiles (
     timeline VARCHAR(30),
     challenge TEXT,
     dream_physique TEXT,
+    role VARCHAR(20) DEFAULT 'user',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -135,10 +136,10 @@ CREATE POLICY "Foods are viewable by all platform members" ON public.foods
 
 CREATE POLICY "Only admins can modify food catalog" ON public.foods
     FOR ALL USING (
-        -- Simple admin authorization check using email patterns
+        -- Secure admin authorization check using role column
         EXISTS (
             SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() AND email LIKE '%admin%'
+            WHERE id = auth.uid() AND role = 'admin'
         )
     );
 

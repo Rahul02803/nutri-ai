@@ -13,7 +13,8 @@ import {
   Sun,
   Moon,
   ArrowRight,
-  Plus
+  Plus,
+  CheckCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -162,6 +163,21 @@ export default function LandingPage() {
             <p className={`text-sm sm:text-base ${textSecondary} max-w-lg leading-relaxed font-medium`}>
               Scan meals instantly with visual intelligence, log custom Indian foods, adjust portions in real-time, and experience automated weekly weight goal calibrations inside a stunning, luxury minimalist canvas.
             </p>
+
+            {/* Features Pillar List */}
+            <div className="grid grid-cols-2 gap-3.5 max-w-lg pt-2">
+              {[
+                "AI-powered calorie tracking",
+                "Instant food recognition",
+                "Smart nutrition coaching",
+                "Built for Indian and global foods"
+              ].map((pill, idx) => (
+                <div key={idx} className="flex items-center space-x-2 text-xs font-bold">
+                  <CheckCircle className="h-4 w-4 shrink-0 text-[#22C55E]" />
+                  <span className={textPrimary}>{pill}</span>
+                </div>
+              ))}
+            </div>
 
             {/* Capsule App Download Badges (Cal AI Style) */}
             <div className="space-y-4 pt-2">

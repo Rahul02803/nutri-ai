@@ -35,7 +35,7 @@ export default function OnboardingPage() {
   const [activityLevel, setActivityLevel] = useState<OnboardingData["activityLevel"]>("moderate");
   const [dietPreference, setDietPreference] = useState<OnboardingData["dietPreference"]>("vegetarian");
   const [workoutFrequency, setWorkoutFrequency] = useState("3"); // days/week
-  const [timeline, setTimeline] = useState("12"); // weeks
+  const [goalSpeed, setGoalSpeed] = useState<"slow" | "moderate" | "aggressive">("moderate");
 
   // Simulation loading state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -81,13 +81,13 @@ export default function OnboardingPage() {
       activityLevel,
       dietPreference,
       workoutFrequency: `${workoutFrequency} days/week`,
-      timeline: `${timeline} weeks`,
+      timeline: `${Math.max(4, Math.round(Math.abs(currentWeight - targetWeight) / (goalSpeed === "slow" ? 0.35 : goalSpeed === "moderate" ? 0.65 : 0.9)))} weeks`,
       allergies: [],
       mealsPerDay: 3,
       challenge: "Consistency",
       fitnessExperience: "Beginner",
       dreamPhysique: goal === "lose_fat" ? "Lean & Toned" : "Athletic",
-      goalSpeed: "moderate"
+      goalSpeed
     };
 
     saveOnboarding(payload);
@@ -402,7 +402,7 @@ export default function OnboardingPage() {
                   </motion.div>
                 )}
 
-                {/* Q10: Timeline */}
+                {/* Q10: Weekly Progress Rate Selector */}
                 {step === 10 && (
                   <motion.div
                     key="step10"
@@ -411,17 +411,27 @@ export default function OnboardingPage() {
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-4"
                   >
-                    <h3 className="font-outfit text-xl font-extrabold text-slate-900">Target Timeline</h3>
-                    <p className="text-[10px] text-slate-400">By when do you plan to achieve this goal?</p>
-                    <div className="space-y-2 pt-2 text-xs font-bold">
-                      <input
-                        type="number"
-                        required
-                        value={timeline || ""}
-                        onChange={(e) => setTimeline(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 focus:outline-none focus:border-slate-400 font-semibold"
-                        placeholder="Timeline in weeks (e.g. 12)..."
-                      />
+                    <h3 className="font-outfit text-xl font-extrabold text-slate-900">Choose Your Weekly Progress Rate</h3>
+                    <p className="text-[10px] text-slate-400">Select how quickly you want to reach your goal.</p>
+                    <div className="space-y-2 pt-1 text-xs font-bold text-slate-700">
+                      {[
+                        { id: "slow" as const, label: "🐌 Slow (0.2–0.5 kg/week)" },
+                        { id: "moderate" as const, label: "🚶 Moderate (0.5–0.8 kg/week)" },
+                        { id: "aggressive" as const, label: "🐆 Fast (0.8–1.0 kg/week)" }
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setGoalSpeed(opt.id)}
+                          className={`w-full py-3.5 px-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                            goalSpeed === opt.id 
+                              ? "bg-slate-900 border-slate-900 text-white shadow-xs" 
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>{opt.label}</span>
+                          {goalSpeed === opt.id && <Check className="h-4.5 w-4.5 text-white" />}
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
                 )}

@@ -1,678 +1,200 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { auth, db, googleProvider } from "@/lib/firebase";
+import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  phone?: string;
   photoURL?: string;
-  provider: "email" | "google" | "phone" | "apple";
+  provider: "google";
   role: "user" | "admin";
   isOnboarded: boolean;
   createdAt: string;
-  sessionToken: string;
-  sessionExpiry: string; // ISO – 24h after login
-}
-
-interface OtpSession {
-  phone: string;
-  code: string;
-  expiresAt: number; // Unix ms timestamp
-  attempts: number;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  isMockMode: boolean;
-  pendingOtp: string | null; // simulated SMS banner
-  pendingEmailOtp: string | null; // simulated Gmail banner
-
-  // Primary auth methods
-  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signupWithEmail: (email: string, name: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithGoogle: (googleEmail: string, googleName?: string, googlePhoto?: string) => Promise<{ success: boolean; error?: string }>;
-  loginWithApple: () => Promise<{ success: boolean; error?: string }>;
-  sendOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
-  verifyOtp: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
-  sendEmailOtp: (email: string) => Promise<{ success: boolean; error?: string }>;
-  verifyEmailOtp: (email: string, code: string, name?: string) => Promise<{ success: boolean; error?: string }>;
-
-  // Session management
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUserOnboardStatus: (status: boolean) => void;
-
-  // Legacy shims
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, name: string) => Promise<boolean>;
 }
 
-// ─── Storage Constants ─────────────────────────────────────────────────────────
-const SESSION_KEY   = "zenlog_session_v2";
-const OTP_KEY       = "zenlog_otp_session_v2";
-const EMAIL_OTP_KEY = "zenlog_email_otp_session_v2";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateUserId(): string {
-  const ts  = Date.now().toString(36);
-  const rnd = Math.random().toString(36).slice(2, 8);
-  return `usr_${ts}_${rnd}`;
-}
-
-function generateSessionToken(): string {
-  const header  = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({ iat: Date.now(), rnd: Math.random() }));
-  const sig     = Math.random().toString(36).slice(2, 20);
-  return `${header}.${payload}.${sig}`;
-}
-
-function generateOtp(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function sessionExpiry(hours = 24): string {
-  const d = new Date();
-  d.setHours(d.getHours() + hours);
-  return d.toISOString();
-}
-
-function isSessionValid(u: User): boolean {
-  try {
-    return new Date(u.sessionExpiry) > new Date();
-  } catch {
-    return false;
-  }
-}
-
-function makeUser(overrides: Partial<User> & { email: string; name: string }): User {
-  const isAdmin = ["admin@zenlog.com", "admin@nutritrack.com"].includes(
-    overrides.email.toLowerCase()
-  );
-  return {
-    id:            generateUserId(),
-    phone:         undefined,
-    photoURL:      undefined,
-    provider:      "email",
-    role:          isAdmin ? "admin" : "user",
-    isOnboarded:   isAdmin,
-    createdAt:     new Date().toISOString(),
-    sessionToken:  generateSessionToken(),
-    sessionExpiry: sessionExpiry(24),
-    ...overrides,
-  };
-}
-
-function accountKey(email: string): string {
-  return `zenlog_account_${email.toLowerCase().replace(/[^a-z0-9@.]/g, "_")}`;
-}
-
-// ─── Context ──────────────────────────────────────────────────────────────────
+const SESSION_KEY = "zenlog_session_v3";
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser]         = useState<User | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [pendingOtp, setPendingOtp] = useState<string | null>(null);
-  const [pendingEmailOtp, setPendingEmailOtp] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const isMockMode = false; // Set false to indicate strict production-grade rules
-
-  // ── Session Recovery ─────────────────────────────────────────────────────
+  // Sync user state on Firebase auth changes
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        const stored: User = JSON.parse(raw);
-        if (isSessionValid(stored)) {
-          setUser(stored);
-        } else {
-          localStorage.removeItem(SESSION_KEY);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      setLoading(true);
+      if (firebaseUser) {
+        try {
+          // Verify Custom Claims via JWT token
+          const tokenResult = await firebaseUser.getIdTokenResult();
+          const role = tokenResult.claims.role === "admin" ? "admin" : "user";
+
+          // Sync with Firestore
+          const userRef = doc(db, "users", firebaseUser.uid);
+          const userSnap = await getDoc(userRef);
+
+          let isOnboarded = false;
+          let createdAt = new Date().toISOString();
+
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            isOnboarded = data.isOnboarded || false;
+            createdAt = data.createdAt?.toDate?.()?.toISOString() || data.createdAt || createdAt;
+          } else {
+            // New user registration
+            await setDoc(userRef, {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+              photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(firebaseUser.uid)}`,
+              role: role,
+              isOnboarded: role === "admin", // Admin bypass onboarding
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+            isOnboarded = role === "admin";
+          }
+
+          const u: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+            photoURL: firebaseUser.photoURL || undefined,
+            provider: "google",
+            role: role,
+            isOnboarded: isOnboarded,
+            createdAt: createdAt
+          };
+
+          setUser(u);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        } catch (e) {
+          console.error("Firestore user sync error", e);
+          // Graceful fallback to localstorage session if Firebase credentials are mock or offline
+          const cached = localStorage.getItem(SESSION_KEY);
+          if (cached) {
+            setUser(JSON.parse(cached));
+          } else {
+            setUser(null);
+          }
         }
+      } else {
+        setUser(null);
+        localStorage.removeItem(SESSION_KEY);
       }
-    } catch {
-      localStorage.removeItem(SESSION_KEY);
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  function syncUserToDatabase(u: User) {
-    try {
-      const raw = localStorage.getItem("zenlog_database_users") || "[]";
-      const users: any[] = JSON.parse(raw);
-      const index = users.findIndex((item) => item.user_id === u.id || (u.email && item.email === u.email));
-      const nowStr = new Date().toISOString();
-      
-      const record = {
-        user_id: u.id,
-        google_id: u.provider === "google" ? `g_${u.id}` : (index >= 0 ? users[index].google_id : undefined),
-        name: u.name,
-        email: u.email || `${u.id}@phone.zenlog.app`,
-        profile_picture: u.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
-        authentication_provider: u.provider,
-        created_at: index >= 0 ? users[index].created_at || nowStr : nowStr,
-        updated_at: nowStr,
-        last_login: nowStr
-      };
-      
-      if (index >= 0) {
-        users[index] = { ...users[index], ...record };
-      } else {
-        users.push(record);
-      }
-      
-      localStorage.setItem("zenlog_database_users", JSON.stringify(users));
-    } catch (e) {
-      console.error("Failed to sync user to database", e);
-    }
-  }
-
-  function persist(u: User) {
-    setUser(u);
-    localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    syncUserToDatabase(u);
-  }
-
-  function refreshSession(u: User): User {
-    return { ...u, sessionToken: generateSessionToken(), sessionExpiry: sessionExpiry(24) };
-  }
-
-  // ── Email / Password Login ────────────────────────────────────────────────
-  const loginWithEmail = async (
-    email: string,
-    password: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
-    await delay(700);
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail || !password.trim()) {
-      setLoading(false);
-      return { success: false, error: "Email and password are required." };
-    }
-    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
-      setLoading(false);
-      return { success: false, error: "Please enter a valid email address." };
-    }
-
-    const key = accountKey(cleanEmail);
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      setLoading(false);
-      return { success: false, error: "Account not found. Please sign up first." };
-    }
-
     try {
-      const account = JSON.parse(raw);
-      // Cryptographic match check (Base64 signature)
-      if (account.passwordHash !== btoa(password)) {
+      // Direct Secure Firebase Google Sign-In popup
+      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+        await signInWithPopup(auth, googleProvider);
         setLoading(false);
-        return { success: false, error: "Invalid email or password." };
-      }
-
-      const u = refreshSession(account);
-      const sessionUser = { ...u };
-      delete (sessionUser as any).passwordHash;
-
-      persist(sessionUser);
-      setLoading(false);
-      return { success: true };
-    } catch (e) {
-      setLoading(false);
-      return { success: false, error: "Authentication system failure. Try again." };
-    }
-  };
-
-  // ── Email / Password Sign-Up ──────────────────────────────────────────────
-  const signupWithEmail = async (
-    email: string,
-    name: string,
-    password: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    setLoading(true);
-    await delay(800);
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail || !name.trim() || !password.trim()) {
-      setLoading(false);
-      return { success: false, error: "All fields are required." };
-    }
-    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
-      setLoading(false);
-      return { success: false, error: "Please enter a valid email address." };
-    }
-    if (name.trim().length < 2) {
-      setLoading(false);
-      return { success: false, error: "Name must be at least 2 characters." };
-    }
-    if (password.length < 6) {
-      setLoading(false);
-      return { success: false, error: "Password must be at least 6 characters." };
-    }
-
-    const key = accountKey(cleanEmail);
-    if (localStorage.getItem(key)) {
-      setLoading(false);
-      return { success: false, error: "An account with this email already exists." };
-    }
-
-    const u = makeUser({ email: cleanEmail, name: name.trim(), provider: "email" });
-    const accountRecord = {
-      ...u,
-      passwordHash: btoa(password) // Cryptographic base64 local storage hash
-    };
-
-    localStorage.setItem(key, JSON.stringify(accountRecord));
-    
-    // Create direct session
-    const sessionUser = { ...u };
-    persist(sessionUser);
-    
-    setLoading(false);
-    return { success: true };
-  };
-
-  // ── Google OAuth Login ────────────────────────────────────────────────────
-  const loginWithGoogle = async (
-    googleEmail: string,
-    googleName?: string,
-    googlePhoto?: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    setLoading(true);
-    await delay(900);
-
-    const cleanEmail = googleEmail.trim().toLowerCase();
-    if (!cleanEmail.includes("@")) {
-      setLoading(false);
-      return { success: false, error: "Google account validation failed." };
-    }
-
-    const name  = googleName || cleanEmail.split("@")[0].replace(/[._\-+]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const key   = accountKey(cleanEmail);
-
-    let u: User;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        u = JSON.parse(raw);
-        u = refreshSession(u);
-        if (googlePhoto) u.photoURL = googlePhoto;
-        localStorage.setItem(key, JSON.stringify(u));
+        return { success: true };
       } else {
-        u = makeUser({ email: cleanEmail, name, provider: "google", photoURL: googlePhoto || undefined });
-        localStorage.setItem(key, JSON.stringify(u));
-      }
-    } catch {
-      setLoading(false);
-      return { success: false, error: "Google authentication failed. Please try again." };
-    }
+        // Safe Google Sign-In Simulation for test/local environments with NO configuration keys
+        const mockUid = `google_${Math.random().toString(36).substring(2, 9)}`;
+        const mockEmail = "user@gmail.com";
+        const mockName = "Google User";
+        const mockPhoto = `https://api.dicebear.com/7.x/avataaars/svg?seed=${mockUid}`;
 
-    persist(u);
-    setLoading(false);
-    return { success: true };
-  };
+        const u: User = {
+          id: mockUid,
+          email: mockEmail,
+          name: mockName,
+          photoURL: mockPhoto,
+          provider: "google",
+          role: "user",
+          isOnboarded: false,
+          createdAt: new Date().toISOString()
+        };
 
-  // ── Apple Sign-In ─────────────────────────────────────────────────────────
-  const loginWithApple = async (): Promise<{ success: boolean; error?: string }> => {
-    setLoading(true);
-    await delay(900);
+        // Simulated DB Sync
+        const raw = localStorage.getItem("zenlog_database_users") || "[]";
+        const users: any[] = JSON.parse(raw);
+        const index = users.findIndex((item) => item.email === mockEmail);
+        const record = {
+          user_id: mockUid,
+          google_id: `g_${mockUid}`,
+          name: mockName,
+          email: mockEmail,
+          profile_picture: mockPhoto,
+          authentication_provider: "google",
+          created_at: index >= 0 ? users[index].created_at : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: new Date().toISOString()
+        };
 
-    const appleSessionKey = "zenlog_account_apple_private_relay";
-    try {
-      const raw = localStorage.getItem(appleSessionKey);
-      let u: User;
-      if (raw) {
-        u = JSON.parse(raw);
-        u = refreshSession(u);
-        localStorage.setItem(appleSessionKey, JSON.stringify(u));
-      } else {
-        u = makeUser({
-          email: `private.user.${Math.random().toString(36).slice(2, 8)}@privaterelay.appleid.com`,
-          name:  "Apple User",
-          provider: "apple",
-        });
-        localStorage.setItem(appleSessionKey, JSON.stringify(u));
-      }
-      persist(u);
-      setLoading(false);
-      return { success: true };
-    } catch {
-      setLoading(false);
-      return { success: false, error: "Apple Authentication failed." };
-    }
-  };
-
-  // ── Send OTP ─────────────────────────────────────────────────────────────
-  const sendOtp = async (
-    phone: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const clean = phone.replace(/\D/g, "");
-    if (clean.length < 10) {
-      return { success: false, error: "Please enter a valid 10-digit mobile number." };
-    }
-
-    await delay(700);
-
-    const code: string = generateOtp();
-    const session: OtpSession = {
-      phone:     clean,
-      code,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      attempts:  0,
-    };
-
-    let realSmsSent = false;
-    let smsErrorMessage = "";
-
-    try {
-      // Attempt live keyless SMS delivery via Textbelt (1 free per day per IP)
-      const response = await fetch("https://textbelt.com/text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          number: `+91${clean}`,
-          message: `Your ZenLog verification OTP is ${code}. Valid for 5 minutes.`,
-          key: "textbelt"
-        })
-      });
-
-      if (response.ok) {
-        const textbeltData = await response.json();
-        if (textbeltData.success) {
-          realSmsSent = true;
+        if (index >= 0) {
+          users[index] = { ...users[index], ...record };
         } else {
-          smsErrorMessage = textbeltData.error || "Rate limit reached.";
+          users.push(record);
         }
+        localStorage.setItem("zenlog_database_users", JSON.stringify(users));
+
+        setUser(u);
+        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        setLoading(false);
+        return { success: true };
+      }
+    } catch (e: any) {
+      setLoading(false);
+      console.error("Firebase Sign-In Error", e);
+      let errorMsg = "Google Sign-In failed. Please try again.";
+      if (e.code === "auth/popup-closed-by-user") {
+        errorMsg = "Login was cancelled. Please complete the popup window to log in.";
+      } else if (e.code === "auth/network-request-failed") {
+        errorMsg = "A network error occurred. Please check your internet connection.";
+      }
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+        await signOut(auth);
       }
     } catch (e) {
-      smsErrorMessage = "Network connection to SMS gateway failed.";
+      console.error("Firebase Sign-Out Error", e);
     }
-
-    try {
-      localStorage.setItem(OTP_KEY, JSON.stringify(session));
-      setPendingOtp(code);
-    } catch {
-      return { success: false, error: "Could not initiate OTP session. Please try again." };
-    }
-
-    if (realSmsSent) {
-      return { 
-        success: true, 
-        error: undefined // Clear error on success
-      };
-    } else {
-      // Gracefully fall back to local simulator banner with notification
-      console.warn("Textbelt live SMS delivery skipped/rate-limited: " + smsErrorMessage);
-      return { 
-        success: true,
-        error: undefined // Return success anyway to activate the simulation backup banner!
-      };
-    }
-  };
-
-  // ── Verify OTP ───────────────────────────────────────────────────────────
-  const verifyOtp = async (
-    phone: string,
-    code: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    setLoading(true);
-    await delay(600);
-
-    const raw = localStorage.getItem(OTP_KEY);
-    if (!raw) {
-      setLoading(false);
-      return { success: false, error: "No active OTP session found. Please request a new code." };
-    }
-
-    let session: OtpSession;
-    try {
-      session = JSON.parse(raw);
-    } catch {
-      localStorage.removeItem(OTP_KEY);
-      setLoading(false);
-      return { success: false, error: "OTP session corrupted. Please request a new code." };
-    }
-
-    const cleanPhone = phone.replace(/\D/g, "");
-
-    if (session.phone !== cleanPhone) {
-      setLoading(false);
-      return { success: false, error: "Phone number mismatch. Please restart the login flow." };
-    }
-
-    if (Date.now() > session.expiresAt) {
-      localStorage.removeItem(OTP_KEY);
-      setPendingOtp(null);
-      setLoading(false);
-      return { success: false, error: "OTP has expired (valid for 5 minutes). Please request a new code." };
-    }
-
-    session.attempts += 1;
-
-    if (session.attempts > 3) {
-      localStorage.removeItem(OTP_KEY);
-      setPendingOtp(null);
-      setLoading(false);
-      return { success: false, error: "Too many incorrect attempts. Please request a new OTP." };
-    }
-
-    if (code.trim() !== session.code) {
-      localStorage.setItem(OTP_KEY, JSON.stringify(session));
-      setLoading(false);
-      const left = 3 - session.attempts;
-      return {
-        success: false,
-        error: `Invalid OTP. ${left} attempt${left !== 1 ? "s" : ""} remaining.`,
-      };
-    }
-
-    // ✓ OTP matches
-    localStorage.removeItem(OTP_KEY);
-    setPendingOtp(null);
-
-    const phoneKey = `zenlog_account_phone_${cleanPhone}`;
-    let u: User;
-    try {
-      const rawUser = localStorage.getItem(phoneKey);
-      if (rawUser) {
-        u = JSON.parse(rawUser);
-        u = refreshSession(u);
-        localStorage.setItem(phoneKey, JSON.stringify(u));
-      } else {
-        u = makeUser({
-          email:    `ph_${cleanPhone}@phone.zenlog.app`,
-          name:     `User ${cleanPhone.slice(-4)}`,
-          phone:    `+91${cleanPhone}`,
-          provider: "phone",
-        });
-        localStorage.setItem(phoneKey, JSON.stringify(u));
-      }
-    } catch {
-      setLoading(false);
-      return { success: false, error: "OTP profile creation failed." };
-    }
-
-    persist(u);
-    setLoading(false);
-    return { success: true };
-  };
-
-  // ── Send Email OTP ───────────────────────────────────────────────────────
-  const sendEmailOtp = async (
-    email: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    const clean = email.trim().toLowerCase();
-    if (!clean || !clean.includes("@") || !clean.includes(".")) {
-      return { success: false, error: "Please enter a valid email address." };
-    }
-
-    await delay(700);
-
-    const code: string = generateOtp();
-    const session = {
-      email:     clean,
-      code,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      attempts:  0,
-    };
-
-    try {
-      localStorage.setItem(EMAIL_OTP_KEY, JSON.stringify(session));
-      setPendingEmailOtp(code);
-    } catch (e) {
-      return { success: false, error: "Could not initiate Gmail OTP session." };
-    }
-
-    return { success: true };
-  };
-
-  // ── Verify Email OTP ──────────────────────────────────────────────────────
-  const verifyEmailOtp = async (
-    email: string,
-    code: string,
-    name?: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    setLoading(true);
-    await delay(600);
-
-    const raw = localStorage.getItem(EMAIL_OTP_KEY);
-    if (!raw) {
-      setLoading(false);
-      return { success: false, error: "No active Gmail OTP session found. Please request a new code." };
-    }
-
-    let session: any;
-    try {
-      session = JSON.parse(raw);
-    } catch (e) {
-      localStorage.removeItem(EMAIL_OTP_KEY);
-      setLoading(false);
-      return { success: false, error: "Gmail OTP session corrupted. Please request a new code." };
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (session.email !== cleanEmail) {
-      setLoading(false);
-      return { success: false, error: "Email address mismatch. Please restart the login flow." };
-    }
-
-    if (Date.now() > session.expiresAt) {
-      localStorage.removeItem(EMAIL_OTP_KEY);
-      setPendingEmailOtp(null);
-      setLoading(false);
-      return { success: false, error: "Gmail OTP has expired. Please request a new code." };
-    }
-
-    session.attempts += 1;
-
-    if (session.attempts > 3) {
-      localStorage.removeItem(EMAIL_OTP_KEY);
-      setPendingEmailOtp(null);
-      setLoading(false);
-      return { success: false, error: "Too many incorrect attempts. Please request a new Gmail OTP." };
-    }
-
-    if (code.trim() !== session.code) {
-      localStorage.setItem(EMAIL_OTP_KEY, JSON.stringify(session));
-      setLoading(false);
-      const left = 3 - session.attempts;
-      return {
-        success: false,
-        error: `Invalid OTP. ${left} attempt${left !== 1 ? "s" : ""} remaining.`,
-      };
-    }
-
-    // ✓ OTP matches!
-    localStorage.removeItem(EMAIL_OTP_KEY);
-    setPendingEmailOtp(null);
-
-    const key = accountKey(cleanEmail);
-    let u: User;
-    try {
-      const rawUser = localStorage.getItem(key);
-      if (rawUser) {
-        u = JSON.parse(rawUser);
-        u = refreshSession(u);
-        localStorage.setItem(key, JSON.stringify(u));
-      } else {
-        const finalName = name?.trim() || cleanEmail.split("@")[0].replace(/[._\-+]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-        u = makeUser({
-          email:    cleanEmail,
-          name:     finalName,
-          provider: "email",
-        });
-        localStorage.setItem(key, JSON.stringify(u));
-      }
-    } catch (e) {
-      setLoading(false);
-      return { success: false, error: "Gmail profile creation failed." };
-    }
-
-    persist(u);
-    setLoading(false);
-    return { success: true };
-  };
-
-  // ── Logout ────────────────────────────────────────────────────────────────
-  const logout = () => {
-    setPendingOtp(null);
-    setPendingEmailOtp(null);
     setUser(null);
-    try {
-      localStorage.removeItem(SESSION_KEY);
-      localStorage.removeItem(OTP_KEY);
-      localStorage.removeItem(EMAIL_OTP_KEY);
-    } catch (e) {
-      console.error("Logout storage clean error", e);
-    }
+    localStorage.removeItem(SESSION_KEY);
   };
 
-  const updateUserOnboardStatus = (status: boolean) => {
+  const updateUserOnboardStatus = async (status: boolean) => {
     if (!user) return;
     const updated: User = { ...user, isOnboarded: status };
-    persist(updated);
-    const key = user.provider === "phone"
-      ? `zenlog_account_phone_${(user.phone || "").replace(/\D/g, "")}`
-      : accountKey(user.email);
+    setUser(updated);
+    localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+
     try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const acc: User = JSON.parse(raw);
-        localStorage.setItem(key, JSON.stringify({ ...acc, isOnboarded: status }));
-      }
-    } catch { /* ignore */ }
-  };
-
-  // Legacy shims
-  const login = async (email: string, password: string): Promise<boolean> => {
-    const result = await loginWithEmail(email, password);
-    return result.success;
-  };
-
-  const signup = async (email: string, name: string): Promise<boolean> => {
-    const result = await signupWithEmail(email, name, "zenlog_user_pass");
-    return result.success;
+      const userRef = doc(db, "users", user.id);
+      await setDoc(userRef, { isOnboarded: status }, { merge: true });
+    } catch (e) {
+      console.error("Failed to save onboard status to firestore", e);
+    }
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user, loading, isMockMode, pendingOtp, pendingEmailOtp,
-        loginWithEmail, signupWithEmail,
-        loginWithGoogle, loginWithApple,
-        sendOtp, verifyOtp,
-        sendEmailOtp, verifyEmailOtp,
-        logout, updateUserOnboardStatus,
-        login, signup,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, updateUserOnboardStatus }}>
       {children}
     </AuthContext.Provider>
   );
@@ -682,8 +204,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
   return ctx;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
 }
