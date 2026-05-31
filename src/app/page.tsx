@@ -92,8 +92,9 @@ export default function LandingPage() {
             
             {/* Logo Group */}
             <div className="flex items-center space-x-2.5">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-[10px] transition-transform duration-300 hover:scale-105 ${darkMode ? "bg-white/5" : "bg-slate-950/5"}`}>
-                <span className="text-xl">🍏</span>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-[10px] overflow-hidden transition-transform duration-300 hover:scale-105`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="ZenLog Logo" className="h-9 w-9 object-contain" />
               </div>
               <span className={`font-outfit text-xl font-bold tracking-tight ${textPrimary}`}>
                 ZenLog

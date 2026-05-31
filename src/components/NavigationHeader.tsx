@@ -27,8 +27,9 @@ export default function NavigationHeader() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo Section */}
           <Link href="/" className="flex items-center space-x-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900/5 transition-transform duration-300 group-hover:scale-105">
-              <span className="text-xl">🍎</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl overflow-hidden transition-transform duration-300 group-hover:scale-105">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="ZenLog Logo" className="h-9 w-9 object-contain" />
             </div>
             <span className="font-outfit text-xl font-bold tracking-tight text-[#111111] transition-colors duration-300">
               ZenLog
