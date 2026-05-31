@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useApp } from "@/context/AppContext";
-import { Camera, Image as ImageIcon, Check, Play, Edit3, X, Sparkles } from "lucide-react";
+import { useApp, LoggedMeal } from "@/context/AppContext";
+import { Camera, Image as ImageIcon, Check, Play, Edit3, X, Sparkles, Key, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ScannerPage() {
@@ -14,7 +14,10 @@ export default function ScannerPage() {
 
   // Screen Sub-States
   const [scanState, setScanState] = useState<"viewport" | "analyzing" | "results">("viewport");
-  
+  const [clientApiKey, setClientApiKey] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [isKeySaved, setIsKeySaved] = useState(false);
+
   // Results form states
   const [foodName, setFoodName] = useState("Paneer Butter Masala & 2 Wheat Roti");
   const [calories, setCalories] = useState("450");
@@ -22,6 +25,24 @@ export default function ScannerPage() {
   const [carbs, setCarbs] = useState("38");
   const [fat, setFat] = useState("14");
   const [servings, setServings] = useState("1");
+
+  // Error/Info Banner States
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState("image/jpeg");
+  const [base64Image, setBase64Image] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load client API key from localStorage if available
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("zenlog_client_gemini_api_key");
+      if (savedKey) {
+        setClientApiKey(savedKey);
+        setIsKeySaved(true);
+      }
+    }
+  }, []);
 
   // Route protection
   useEffect(() => {
@@ -32,18 +53,85 @@ export default function ScannerPage() {
 
   if (!user) return null;
 
-  const handleCapturePhoto = () => {
-    setScanState("analyzing");
-    setTimeout(() => {
-      setScanState("results");
-    }, 2500); // 2.5s simulated Gemini Vision analysis
+  const saveApiKeyToLocal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (typeof window !== "undefined") {
+      localStorage.setItem("zenlog_client_gemini_api_key", clientApiKey);
+      setIsKeySaved(true);
+      setShowKeyInput(false);
+    }
   };
 
-  const handleGalleryUpload = () => {
+  const handleClearApiKey = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("zenlog_client_gemini_api_key");
+      setClientApiKey("");
+      setIsKeySaved(false);
+    }
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setMimeType(file.type);
+    setErrorText(null);
     setScanState("analyzing");
-    setTimeout(() => {
-      setScanState("results");
-    }, 2500);
+
+    // Convert file to base64 string
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setBase64Image(base64);
+      await performGeminiScan(base64, file.type);
+    };
+    reader.onerror = () => {
+      setErrorText("Failed to read image file.");
+      setScanState("viewport");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+  const performGeminiScan = async (base64Str: string, fileType: string) => {
+    try {
+      const response = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: base64Str,
+          mimeType: fileType,
+          clientApiKey: clientApiKey || undefined
+        })
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resData.error || "Failed to scan image.");
+      }
+
+      if (resData.success && resData.data) {
+        const parsed = resData.data;
+        setFoodName(parsed.foodName || "Estimated Meal");
+        setCalories((parsed.calories || 300).toString());
+        setProtein((parsed.protein || 10).toString());
+        setCarbs((parsed.carbs || 35).toString());
+        setFat((parsed.fat || 8).toString());
+        setServings("1");
+        setScanState("results");
+      } else {
+        throw new Error("Unable to parse food nutrition details from image.");
+      }
+
+    } catch (e: any) {
+      console.error(e);
+      setErrorText(e?.message || "Visual scanning error. Make sure your Gemini API key is correct.");
+      setScanState("viewport");
+    }
   };
 
   const handleSaveMeal = (e: React.FormEvent) => {
@@ -64,22 +152,119 @@ export default function ScannerPage() {
       serv
     );
 
-    // Navigate back to home dashboard
-    router.push("/dashboard");
+    // Save meal log timestamp fallback for calendar synchronization
+    const todayStr = new Date().toISOString().split("T")[0];
+    setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(`nutriai_meals_${user.id}`);
+        if (stored) {
+          const parsed: LoggedMeal[] = JSON.parse(stored);
+          if (parsed.length > 0 && parsed[parsed.length - 1].loggedDate !== todayStr) {
+            parsed[parsed.length - 1].loggedDate = todayStr;
+            localStorage.setItem(`nutriai_meals_${user.id}`, JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      router.push("/dashboard");
+    }, 100);
   };
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-6 text-[#111827] bg-[#F8F8FA] min-h-screen pb-32">
       
       {/* Brand Header */}
-      <div className="text-left">
-        <h1 className="font-outfit text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <span>📷</span> AI Food Scanner
-        </h1>
-        <p className="text-xs text-slate-400">
-          Powered by Gemini 2.5 Flash Vision. Estimate portion and macros automatically.
-        </p>
+      <div className="text-left flex justify-between items-start">
+        <div>
+          <h1 className="font-outfit text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <span>📷</span> AI Food Scanner
+          </h1>
+          <p className="text-xs text-slate-400">
+            Powered by live Gemini 1.5 Flash Vision.
+          </p>
+        </div>
+
+        {/* API Key Toggle Indicator */}
+        <button
+          onClick={() => setShowKeyInput(!showKeyInput)}
+          className={`p-2 rounded-xl border flex items-center justify-center transition-all ${
+            isKeySaved 
+              ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
+              : "bg-amber-50 text-amber-600 border-amber-200"
+          }`}
+          title="Configure Gemini API Key"
+        >
+          <Key className="h-4.5 w-4.5" />
+        </button>
       </div>
+
+      {/* API Key Configuration Dropdown */}
+      <AnimatePresence>
+        {showKeyInput && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <form onSubmit={saveApiKeyToLocal} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs text-xs font-bold text-slate-700 space-y-3">
+              <div className="flex justify-between items-center">
+                <span>Gemini API Key Setup</span>
+                {isKeySaved && (
+                  <button type="button" onClick={handleClearApiKey} className="text-rose-500 text-[10px] hover:underline">
+                    Clear Saved Key
+                  </button>
+                )}
+              </div>
+
+              <input
+                type="password"
+                required
+                value={clientApiKey}
+                onChange={(e) => setClientApiKey(e.target.value)}
+                placeholder="Paste your API key starting with AIzaSy..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
+              />
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 text-center"
+              >
+                Save key to browser
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error notification banner */}
+      {errorText && (
+        <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-left flex items-start space-x-2 text-rose-700">
+          <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Scan Failed</p>
+            <p className="text-[10px] text-rose-600 mt-0.5">{errorText}</p>
+            {!isKeySaved && (
+              <button 
+                onClick={() => setShowKeyInput(true)} 
+                className="text-[10px] text-[#14B8A6] font-bold underline mt-1 block"
+              >
+                Configure your Gemini API Key first
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageChange}
+        accept="image/*"
+        className="hidden"
+      />
 
       <AnimatePresence mode="wait">
         
@@ -95,8 +280,8 @@ export default function ScannerPage() {
             {/* Viewport container */}
             <div className="h-96 w-full bg-[#111115] rounded-[32px] overflow-hidden relative flex flex-col justify-between p-6 border-4 border-slate-900 shadow-md">
               <div className="flex justify-between items-center text-white/50 text-[10px] font-mono">
-                <span>[ 4K UHD SCANNER ]</span>
-                <span className="animate-pulse text-[#14B8A6] font-bold">● REC LIVE</span>
+                <span>[ 4K MULTIMODAL SCAN ]</span>
+                <span className="animate-pulse text-[#14B8A6] font-bold">● ONLINE READY</span>
               </div>
 
               {/* Align grid brackets in center */}
@@ -106,9 +291,9 @@ export default function ScannerPage() {
 
               {/* Overlay simulation context */}
               <div className="text-center z-10 text-white/60 space-y-1">
-                <p className="text-xs font-bold">Simulated Camera Viewport</p>
+                <p className="text-xs font-bold">ZenLog Visual Assessment</p>
                 <p className="text-[9px] max-w-[200px] mx-auto">
-                  Position your plate in the center frame to compute Mifflin macros automatically.
+                  Click gallery or capture to feed base64 image data directly to Google Generative AI endpoints.
                 </p>
               </div>
 
@@ -116,16 +301,16 @@ export default function ScannerPage() {
               <div className="flex justify-around items-center pt-4 z-10">
                 {/* Gallery Option */}
                 <button
-                  onClick={handleGalleryUpload}
+                  onClick={triggerFileInput}
                   className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
                   title="Gallery Upload"
                 >
                   <ImageIcon className="h-5 w-5" />
                 </button>
 
-                {/* Main Capture Trigger */}
+                {/* Main Capture Trigger (simulated by triggering file browser) */}
                 <button
-                  onClick={handleCapturePhoto}
+                  onClick={triggerFileInput}
                   className="h-16 w-16 rounded-full bg-[#111827] border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
                   title="Capture Plate"
                 >
@@ -161,8 +346,8 @@ export default function ScannerPage() {
             </div>
 
             <div className="space-y-2">
-              <h3 className="font-outfit text-md font-extrabold text-slate-800">Gemini 2.5 Flash Vision</h3>
-              <p className="text-[10px] text-slate-400 font-mono pulse-light">Parsing plate boundary & estimating Indian staples catalog...</p>
+              <h3 className="font-outfit text-md font-extrabold text-slate-800">Gemini 1.5 Flash Vision</h3>
+              <p className="text-[10px] text-slate-400 font-mono pulse-light">Calling API endpoint & extracting structured nutrition counts...</p>
             </div>
           </motion.div>
         )}
