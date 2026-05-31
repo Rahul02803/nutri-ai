@@ -108,19 +108,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
     try {
-      // Direct Secure Firebase Google Sign-In popup
-      await signInWithPopup(auth, googleProvider);
-      setLoading(false);
-      return { success: true };
+      const isCapacitor = typeof window !== "undefined" && (window as any).Capacitor !== undefined;
+
+      if (isCapacitor) {
+        // Native Google Sign-In using Capawesome
+        const { GoogleSignIn } = await import("@capawesome/capacitor-google-sign-in");
+        
+        // Retrieve Web Client ID from environment variables
+        const webClientId = process.env.NEXT_PUBLIC_FIREBASE_WEB_CLIENT_ID;
+
+        // Initialize Capawesome Google Sign-In
+        await GoogleSignIn.initialize({
+          clientId: webClientId || "337076644265-d419p2v86k5b1h73489d0e744.apps.googleusercontent.com", // Web client ID
+          scopes: ["profile", "email"],
+        });
+
+        // Trigger native Google Account Picker prompt inside the app
+        const result = await GoogleSignIn.signIn();
+        
+        if (!result.idToken) {
+          throw new Error("Failed to retrieve Google Auth ID Token from native prompt.");
+        }
+
+        // Authenticate into Firebase with the native credential
+        const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth");
+        const credential = GoogleAuthProvider.credential(result.idToken);
+        await signInWithCredential(auth, credential);
+        
+        setLoading(false);
+        return { success: true };
+      } else {
+        // Standard Web Google Sign-In popup
+        await signInWithPopup(auth, googleProvider);
+        setLoading(false);
+        return { success: true };
+      }
     } catch (e: any) {
       setLoading(false);
-      console.error("Firebase Sign-In Error", e);
-      let errorMsg = "Google sign in failed. Please try again.";
-      if (e.code === "auth/popup-closed-by-user") {
-        errorMsg = "Login was cancelled. Please complete the popup window to log in.";
-      } else if (e.code === "auth/network-request-failed") {
-        errorMsg = "A network error occurred. Please check your internet connection.";
+      console.error("Authentication Error Details:", e);
+      
+      let errorMsg = "Unable to sign in with Google. Please try again.";
+      if (e.code === "auth/popup-closed-by-user" || e.message?.includes("cancelled") || e.code === "12501" || e.message?.includes("12501")) {
+        // Code 12501 represents cancelled native login
+        errorMsg = "Login was cancelled. Please select a Google account to log in.";
+      } else if (e.code === "auth/network-request-failed" || e.message?.includes("network")) {
+        errorMsg = "Authentication failed. Check your internet connection.";
       }
+      
       return { success: false, error: errorMsg };
     }
   };
