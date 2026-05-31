@@ -1,6 +1,6 @@
 {
   "appId": "com.nutriai.app",
-  "appName": "NutriAI",
+  "appName": "ZenLog",
   "webDir": "out",
   "server": {
     "androidScheme": "https"
