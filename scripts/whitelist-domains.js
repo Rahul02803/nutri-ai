@@ -20,8 +20,7 @@ const domainsToWhitelist = [
   "zenlog-11984.web.app",
   "nutri-ai.vercel.app",
   "nutri-ai-three.vercel.app",
-  "zenlog-dsky.vercel.app",
-  "zenlog-dsky.verscel.app"
+  "zenlog-dusky.vercel.app"
 ];
 
 async function run() {
