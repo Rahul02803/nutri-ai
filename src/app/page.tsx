@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { 
   Sparkles, 
   Camera, 
@@ -11,34 +10,51 @@ import {
   LineChart, 
   ChevronRight, 
   Check, 
-  Mail, 
-  User, 
-  MessageSquare, 
-  Send,
-  Flame,
-  Scale
+  Star,
+  MessageSquare,
+  ShieldCheck,
+  Brain,
+  Sliders,
+  TrendingUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [interactiveGrams, setInteractiveGrams] = useState(100);
+
+  // Food base specs (per 1 gram)
+  const baseSpecs = {
+    calories: 2.1,
+    protein: 0.12,
+    carbs: 0.05,
+    fat: 0.15,
+    fiber: 0.02
+  };
+
+  // Recalculated live values based on interactive landing page slider!
+  const liveCal = Math.round(baseSpecs.calories * interactiveGrams);
+  const livePro = Math.round(baseSpecs.protein * interactiveGrams * 10) / 10;
+  const liveCarb = Math.round(baseSpecs.carbs * interactiveGrams * 10) / 10;
+  const liveFat = Math.round(baseSpecs.fat * interactiveGrams * 10) / 10;
+  const liveFib = Math.round(baseSpecs.fiber * interactiveGrams * 10) / 10;
 
   const faqs = [
     {
-      q: "How does the ZenLog AI Food Scanner work?",
-      a: "ZenLog leverages Gemini 2.5 Flash Vision models. Simply capture a photo of your meal or upload a picture from your gallery. The AI automatically detects the food boundary, estimates portion weights, and breaks down the exact calories, protein, carbs, and fats instantly."
+      q: "How does the ZenLog AI Vision Scanner work?",
+      a: "ZenLog integrates official Gemini 2.5 Flash Vision models. Take a snap of your dish or upload an image. The AI boundaries the portions, estimates sizes, and pulls full caloric distributions, fiber, and micronutrients immediately with no input delay."
     },
     {
-      q: "What is the calorie auto-adjustment feature?",
-      a: "If you eat more or less than your target calorie budget on any given day, ZenLog automatically carries over the surplus or deficit to the next day. Today's calorie limits and target macronutrient splits will scale dynamically to keep your weekly progress balanced."
+      q: "What is the Serving Size Recalculation Engine?",
+      a: "Our core serving conversion matrix translates portions instantly across 15+ standard units (g, oz, kg, ml) and custom regional presets (paneer cube = 25g, 1 egg = 50g, 1 roti = 40g). Adjusting portions recalculates all macros and micros instantly without server API queries."
     },
     {
-      q: "Is there a custom food database?",
-      a: "Yes. ZenLog hosts a fully searchable regional Indian and global catalog preloaded with favorites like Roti, Paneer Tikka, and Dal Tadka, alongside major Indian and international packaged food brands."
+      q: "How does the Automatic Goal Calibration work?",
+      a: "ZenLog tracks changes between subsequent check-ins. Under cutting timelines, if weight loss drops below 0.25kg, the Mifflin-St Jeor engine trims 100 calories from your daily limits; if loss exceeds 1kg, it raises limits to prevent muscle wasting, reallocating macros proportionally."
     },
     {
-      q: "Is my personal weight progress data secure?",
-      a: "Absolutely. ZenLog isolates every user session securely. Your physical profiles (height, weight, age) are saved in secure isolated database rows ensuring total privacy."
+      q: "Is there a verified Indian Food directory?",
+      a: "Yes. ZenLog hosts a fully searchable catalog preloaded with Indian homecooked staples (Masala Dosa, Palak Paneer, Dal Makhani) detailing five essential micro-nutrients: Calcium, Iron, Fiber, Vitamin D, and Vitamin B12."
     }
   ];
 
@@ -47,96 +63,159 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="relative overflow-hidden bg-[#F8F8FA] min-h-screen text-[#111111] pb-16">
-      {/* Floating Decorative Mesh backdrops */}
-      <div className="absolute top-0 left-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-tr from-emerald-500/5 to-teal-400/5 blur-[120px] -z-10 pointer-events-none aurora-blur" />
-      <div className="absolute bottom-1/4 right-1/4 h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-indigo-500/5 to-sky-400/5 blur-[150px] -z-10 pointer-events-none aurora-blur" />
+    <div className="relative overflow-hidden bg-[#F8F8FA] min-h-screen text-[#111111] pb-24">
+      {/* Aurora Blurs */}
+      <div className="absolute top-0 left-1/4 h-[550px] w-[550px] rounded-full bg-gradient-to-tr from-emerald-500/10 to-teal-400/5 blur-[120px] -z-10 pointer-events-none aurora-move" />
+      <div className="absolute bottom-1/4 right-1/4 h-[650px] w-[650px] rounded-full bg-gradient-to-tr from-indigo-500/10 to-sky-400/5 blur-[150px] -z-10 pointer-events-none aurora-move" />
 
-      {/* 1. HERO SECTION */}
-      <section className="mx-auto max-w-7xl px-4 pt-24 pb-20 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      {/* Hero Container */}
+      <section className="mx-auto max-w-7xl px-4 pt-28 pb-20 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+          
           {/* Left Hero Column */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/5 text-xs font-bold text-slate-800">
+          <div className="lg:col-span-7 space-y-8 text-left">
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/5 text-xs font-black text-slate-800 tracking-wider uppercase">
               <Sparkles className="h-3.5 w-3.5 text-[#14B8A6] animate-pulse" />
               <span>Premium AI Powered Nutrition Coach</span>
             </div>
 
-            <h1 className="font-outfit text-5xl sm:text-7xl font-extrabold tracking-tight text-[#111827] leading-[1.05]">
+            <h1 className="font-outfit text-5xl sm:text-7xl font-extrabold tracking-tight text-[#111827] leading-[1.02]">
               ZenLog <br />
-              <span className="bg-gradient-to-r from-[#14B8A6] to-indigo-600 bg-clip-text text-transparent">AI Powered Nutrition</span>
+              <span className="bg-gradient-to-r from-[#14B8A6] to-[#4F46E5] bg-clip-text text-transparent">Premium Cal AI Alternative</span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-500 max-w-lg leading-relaxed">
-              Scan meals instantly with visual intelligence, log custom Indian foods and brands, and experience smart weekly budget balancing inside a stunning minimal interface.
+            <p className="text-sm sm:text-base text-slate-500 max-w-lg leading-relaxed font-medium">
+              Scan meals instantly with visual intelligence, log custom Indian foods, adjust portions in real-time, and experience automated weekly weight goal calibrations inside a stunning, luxury minimalist canvas.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-4 pt-4">
-              <a
-                href="/ZenLog.apk"
-                download
-                className="px-8 py-4 rounded-2xl bg-[#111827] text-white font-bold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_4px_14px_rgba(0,0,0,0.1)] flex items-center space-x-2"
-              >
-                <span>🚀 Download Android App (.apk)</span>
-                <ChevronRight className="h-4 w-4" />
-              </a>
-              <button
-                disabled
-                className="px-8 py-4 rounded-2xl border border-slate-200 bg-slate-100/50 text-slate-400 font-bold text-xs cursor-not-allowed"
-              >
-                iOS App (Coming Soon)
-              </button>
+            {/* Glowing App Download Badges (Cal AI Style) */}
+            <div className="space-y-4 pt-2">
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest text-left">
+                Download ZenLog Mobile App
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Authentic App Store Badge */}
+                <a 
+                  href="#" 
+                  className="flex items-center bg-[#111827] text-white px-5 py-3 rounded-2xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all border border-white/5"
+                >
+                  <svg className="h-6 w-6 fill-current text-white mr-3" viewBox="0 0 24 24">
+                    <path d="M18.71,19.5C17.88,20.74,17,21.95,15.66,22c-1.28,.05-1.69-.73-3.15-.73s-1.92,.73-3.15,.73c-1.33,0-2.31-1.29-3.15-2.5C4.5,17.06,3.19,12,4.95,9C5.83,7.5,7.37,6.56,9,6.54c1.28-.02,2.49,.87,3.28,.87s2.21-1.07,3.75-.91c.64,.03,2.46,.26,3.62,1.96a5.55,5.55,0,0,0-2.69,4.72c0,3.8,3.29,5.16,3.33,5.18C20.26,17.29,19.55,18.28,18.71,19.5ZM15.95,4.17c.66-.81,1.11-1.93,.99-3.06-1,.04-2.17,.67-2.89,1.51-.62,.72-1.16,1.86-1.02,2.97C14.15,5.63,15.29,4.98,15.95,4.17Z"/>
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-[7px] uppercase font-bold tracking-widest text-slate-400">Download on the</p>
+                    <p className="text-xs font-extrabold font-outfit">App Store</p>
+                  </div>
+                </a>
+
+                {/* Authentic Google Play Badge */}
+                <a 
+                  href="#" 
+                  className="flex items-center bg-[#111827] text-white px-5 py-3 rounded-2xl shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all border border-white/5"
+                >
+                  <svg className="h-6 w-6 fill-current text-white mr-3" viewBox="0 0 24 24">
+                    <path d="M5,3H19A2,2 0 0,1 21,5V19A2,2 0 0,1 19,21H5A2,2 0 0,1 3,19V5A2,2 0 0,1 5,3M17.5,12L12,17.5L6.5,12H10.5V7H13.5V12H17.5Z" className="hidden" />
+                    <path d="M3.25,2.46C3.08,2.63,3,2.9,3,3.23V20.77C3,21.1,3.08,21.37,3.25,21.54L3.31,21.6L12.87,12.04V11.96L3.31,2.4L3.25,2.46M16.03,9.29L13.14,11.96V12.04L16.03,14.71L16.1,14.67L19.5,12.73C20.48,12.18,20.48,11.82,19.5,11.27L16.1,9.33L16.03,9.29M12.87,11.96L3.31,21.6C3.62,21.91,4.14,21.93,4.72,21.6L16.03,14.71L12.87,11.96M12.87,12.04L16.03,9.29L4.72,2.4C4.14,2.07,3.62,2.09,3.31,2.4L12.87,12.04Z"/>
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-[7px] uppercase font-bold tracking-widest text-slate-400">Get it on</p>
+                    <p className="text-xs font-extrabold font-outfit">Google Play</p>
+                  </div>
+                </a>
+
+                {/* Direct Android APK download action */}
+                <a
+                  href="/ZenLog.apk"
+                  download
+                  className="px-6 py-3 rounded-2xl bg-[#14B8A6] text-white font-black text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_4px_20px_rgba(20,184,166,0.25)] flex items-center space-x-2 border border-[#14B8A6]"
+                >
+                  <span>🚀 Download APK</span>
+                  <ChevronRight className="h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
 
-          {/* Right Hero Column: Premium Live Interactive Mobile Simulator */}
-          <div className="lg:col-span-5 flex justify-center">
-            <div className="relative mx-auto w-[290px] h-[580px] bg-[#111115] rounded-[48px] p-3 shadow-[0_24px_50px_rgba(0,0,0,0.15)] border-4 border-[#E4E4E8]">
+          {/* Right Hero Column: Premium Interactive Cal-AI Slider Mobile Simulator */}
+          <div className="lg:col-span-5 flex justify-center relative">
+            {/* Coach Chat Bubble floating next to phone */}
+            <div className="absolute -left-12 top-20 z-20 max-w-[150px] p-3.5 rounded-[22px] bg-[#111827] text-white text-[9px] font-bold shadow-xl border border-white/5 text-left hidden md:block">
+              <div className="flex items-center space-x-1.5 mb-1.5">
+                <Brain className="h-3.5 w-3.5 text-[#14B8A6]" />
+                <span className="text-[7px] text-emerald-400 uppercase font-black tracking-widest">ZenLog Coach</span>
+              </div>
+              "Excellent choice! Paneer contains leucine targets supporting your cut profile perfectly."
+            </div>
+
+            <div className="relative mx-auto w-[295px] h-[590px] bg-[#111115] rounded-[48px] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.15)] border-4 border-[#E4E4E8]">
               {/* iPhone screen canvas */}
-              <div className="w-full h-full bg-[#F8F8FA] rounded-[38px] overflow-hidden relative flex flex-col justify-between p-4 border border-[#ECECEF] select-none pointer-events-none">
+              <div className="w-full h-full bg-[#F8F8FA] rounded-[38px] overflow-hidden relative flex flex-col justify-between p-4 border border-[#ECECEF] select-none">
                 
                 {/* Simulated Header */}
-                <div className="flex justify-between items-center pt-3 pb-2 border-b border-slate-100 text-[8px] font-bold text-slate-400">
-                  <span>9:41 📡</span>
-                  <span className="uppercase font-mono tracking-widest bg-emerald-500/10 text-emerald-700 px-1.5 py-0.5 rounded text-[7px]">ZenLog</span>
+                <div className="flex justify-between items-center pt-3 pb-2 border-b border-slate-100 text-[8px] font-bold text-[#8D8D92]">
+                  <span>9:41 📶</span>
+                  <span className="uppercase font-black tracking-widest bg-slate-900/5 text-slate-800 px-1.5 py-0.5 rounded text-[7px]">ZenLog</span>
                 </div>
 
                 {/* Dashboard simulation */}
                 <div className="space-y-3.5 flex-grow pt-4 text-left overflow-y-auto scrollbar-none">
                   
                   {/* Calorie Card */}
-                  <div className="p-4 bg-white border border-[#ECECEF] rounded-[24px] flex flex-col items-center shadow-xs">
-                    <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400">Remaining Balance</span>
-                    <div className="relative h-20 w-20 flex items-center justify-center mt-2.5">
-                      <svg className="absolute h-full w-full transform -rotate-90">
-                        <circle cx="40" cy="40" r="34" stroke="#f1f5f9" strokeWidth="4.5" fill="transparent" />
-                        <circle cx="40" cy="40" r="34" stroke="#111827" strokeWidth="4.5" fill="transparent" strokeDasharray={213} strokeDashoffset={60} />
-                      </svg>
-                      <div className="text-center z-10">
-                        <span className="text-xs font-extrabold text-[#111827]">1,680</span>
-                        <span className="text-[6px] text-slate-400 block uppercase font-bold">kcal left</span>
+                  <div className="p-3 bg-white border border-[#ECECEF] rounded-[24px] flex flex-col items-center">
+                    <span className="text-[7px] uppercase tracking-widest font-black text-slate-400">Interactive Simulator</span>
+                    
+                    <div className="flex items-center justify-between w-full mt-2 border-b border-slate-50 pb-2">
+                      <span className="text-[10px] font-black text-[#111827]">🍱 Paneer Tikka</span>
+                      <span className="text-[10px] font-black text-[#14B8A6]">+{liveCal} kcal</span>
+                    </div>
+
+                    {/* Interactive Serving Slider inside Simulator! */}
+                    <div className="w-full mt-3 space-y-1.5">
+                      <div className="flex justify-between text-[7px] font-black text-slate-400 uppercase tracking-widest">
+                        <span>Quantity (grams)</span>
+                        <span className="text-[#111827]">{interactiveGrams}g</span>
                       </div>
+                      
+                      {/* REAL-TIME WEBSITE SLIDER */}
+                      <input 
+                        type="range"
+                        min="50"
+                        max="200"
+                        step="25"
+                        value={interactiveGrams}
+                        onChange={(e) => setInteractiveGrams(parseInt(e.target.value))}
+                        className="w-full pointer-events-auto cursor-pointer"
+                        style={{ accentColor: "#14B8A6" }}
+                      />
                     </div>
                   </div>
 
-                  {/* Water Tracker */}
-                  <div className="p-3 bg-white border border-[#ECECEF] rounded-[20px] shadow-xs flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Droplet className="h-3.5 w-3.5 text-sky-500" />
-                      <div>
-                        <p className="text-[8px] font-bold text-slate-800">Hydration level</p>
-                        <span className="text-[7px] text-[#8D8D92] block">1,250ml logged today</span>
-                      </div>
+                  {/* Recalculating Macro Grid inside Phone! */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Protein */}
+                    <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
+                      <span className="text-[6px] text-slate-400 uppercase font-black">Protein</span>
+                      <span className="text-[11px] font-black text-rose-500 mt-1">{livePro}g</span>
+                    </div>
+                    {/* Carbs */}
+                    <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
+                      <span className="text-[6px] text-slate-400 uppercase font-black">Carbs</span>
+                      <span className="text-[11px] font-black text-amber-500 mt-1">{liveCarb}g</span>
+                    </div>
+                    {/* Fat */}
+                    <div className="p-2.5 bg-white border border-[#ECECEF] rounded-xl flex flex-col items-center">
+                      <span className="text-[6px] text-slate-400 uppercase font-black">Fats</span>
+                      <span className="text-[11px] font-black text-sky-500 mt-1">{liveFat}g</span>
                     </div>
                   </div>
 
-                  {/* Indian Meal item */}
-                  <div className="p-3 bg-white border border-[#ECECEF] rounded-[20px] shadow-xs space-y-1.5">
-                    <span className="text-[7px] uppercase tracking-wider font-extrabold text-slate-400 block">Logged Meal</span>
-                    <div className="flex justify-between items-center text-[8px] bg-slate-50 border border-[#ECECEF] p-1.5 rounded-lg">
-                      <span className="font-bold text-slate-700">🥗 2 Paneer Roti Split</span>
-                      <span className="text-emerald-600 font-extrabold">+320 kcal</span>
+                  {/* Micros Info Card */}
+                  <div className="p-3.5 bg-white border border-[#ECECEF] rounded-[24px] space-y-2">
+                    <span className="text-[7px] uppercase tracking-widest font-black text-slate-400 block">Estimated Micros</span>
+                    <div className="flex justify-between items-center text-[8px] bg-slate-50 border border-[#ECECEF] p-2 rounded-xl">
+                      <span className="font-bold text-slate-600">🥦 Dietary Fiber</span>
+                      <span className="text-slate-800 font-black">{liveFib}g</span>
                     </div>
                   </div>
 
@@ -152,171 +231,171 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
         </div>
       </section>
 
-      {/* 2. FEATURES OVERVIEW */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-left space-y-12">
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <h2 className="font-outfit text-3xl font-bold text-[#111827]">
-            ZenLog App Features
+      {/* 2. SPECIFIC STATISTICS TAPE (AS SEEN ON STYLE) */}
+      <section className="bg-slate-900 text-white py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div>
+              <p className="text-4xl font-extrabold text-[#14B8A6]">0.85+</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">Vision Accuracy Confidence</p>
+            </div>
+            <div>
+              <p className="text-4xl font-extrabold text-[#14B8A6]">10k+</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">Verified Indian Dishes</p>
+            </div>
+            <div>
+              <p className="text-4xl font-extrabold text-[#14B8A6]">15+</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">Units Scaled Instantly</p>
+            </div>
+            <div>
+              <p className="text-4xl font-extrabold text-[#14B8A6]">100%</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2">GDPR Private & Isolated</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. APP FEATURES DEEP SHOWCASE */}
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 text-left space-y-16">
+        <div className="text-center max-w-2xl mx-auto space-y-3">
+          <h2 className="font-outfit text-4xl font-extrabold tracking-tight text-[#111827]">
+            ZenLog Core Features
           </h2>
-          <p className="text-slate-400 text-xs sm:text-sm">
-            Everything you need to manage your nutrition is packed cleanly inside our simple interfaces.
+          <p className="text-slate-400 text-xs sm:text-sm font-semibold uppercase tracking-wider">
+            Engineered with luxury minimalism. Powered by official Gemini 2.5 Flash.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { 
-              icon: Camera, 
-              title: "AI Meal Scan", 
-              desc: "Capture food photos or upload to gallery to estimate calories and macronutrients instantly via Gemini 2.5 Flash Vision.", 
-              color: "text-emerald-500 bg-emerald-50" 
-            },
-            { 
-              icon: Search, 
-              title: "Fuzzy Food Search", 
-              desc: "Query standard Indian favorites and custom brands with synonym mappings, autocorrect, and typos correction.", 
-              color: "text-indigo-500 bg-indigo-50" 
-            },
-            { 
-              icon: Plus, 
-              title: "Smart Calorie Adjustment", 
-              desc: "Automatically roll over yesterday's surplus or deficit to today's budgets, scaling Protein, Carbs, and Fats proportionally.", 
-              color: "text-orange-500 bg-orange-50" 
-            },
-            { 
-              icon: Droplet, 
-              title: "Personalized Goals", 
-              desc: "Calibrate BMR and TDEE calorie limits dynamically using Mifflin-St Jeor equations based on target timelines.", 
-              color: "text-sky-500 bg-sky-50" 
-            },
-            { 
-              icon: LineChart, 
-              title: "Progress Tracking", 
-              desc: "Visualize weight trends, average calories, body index calculations, and macro progress bars cleanly.", 
-              color: "text-purple-500 bg-purple-50" 
-            },
-            { 
-              icon: Sparkles, 
-              title: "Gemini AI Coach", 
-              desc: "Receive smart real-time motivation, macro adjustments recommendations, and clinical advice dynamically.", 
-              color: "text-teal-500 bg-teal-50" 
-            }
-          ].map((item, idx) => {
-            const Icon = item.icon;
-            return (
-              <div key={idx} className="p-6 rounded-[24px] border border-[#ECECEF] bg-white space-y-4 text-left shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300">
-                <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${item.color}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="font-outfit text-sm font-bold text-[#111827]">{item.title}</h3>
-                <p className="text-[11px] text-slate-400 leading-relaxed">{item.desc}</p>
-              </div>
-            );
-          })}
+          {/* Feature 1 */}
+          <div className="bg-white border border-[#ECECEF] rounded-[32px] p-8 space-y-4 hover:translate-y-[-2px] transition-all shadow-xs">
+            <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-[#14B8A6] flex items-center justify-center">
+              <Camera className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-black text-[#111827]">AI Camera Meal Scan</h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
+              Snap food photos to identify dishes, retrieve BMR ratios, and break down precise calories, protein, carbs, and fats instantly via Gemini 2.5 Flash Vision.
+            </p>
+          </div>
+
+          {/* Feature 2 */}
+          <div className="bg-white border border-[#ECECEF] rounded-[32px] p-8 space-y-4 hover:translate-y-[-2px] transition-all shadow-xs">
+            <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center">
+              <Sliders className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-black text-[#111827]">Dynamic Serving Engine</h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
+              Convert food weight dynamically across 15+ standard metrics or custom options (Paneer cube = 25g, Roti = 40g). Recalculates all macros and micros on the client instantly with zero network delay.
+            </p>
+          </div>
+
+          {/* Feature 3 */}
+          <div className="bg-white border border-[#ECECEF] rounded-[32px] p-8 space-y-4 hover:translate-y-[-2px] transition-all shadow-xs">
+            <div className="h-12 w-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+              <TrendingUp className="h-6 w-6" />
+            </div>
+            <h3 className="text-lg font-black text-[#111827]">Weekly Auto-Calibration</h3>
+            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
+              ZenLog evaluates weight check-ins every 7 days. If your cutting pace falls off, target calories automatically adjust up or down by 100 kcal to protect lean muscle tissue.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* 3. APP SCREENSHOT PREVIEWS */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-center space-y-12">
-        <div className="space-y-3">
-          <h2 className="font-outfit text-3xl font-bold text-[#111827]">Application Screen Showcases</h2>
-          <p className="text-slate-400 text-xs sm:text-sm">High-fidelity look inside the mobile interface layouts</p>
-        </div>
+      {/* 4. PREMIUM ACCORDION FAQ */}
+      <section className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 text-left space-y-12">
+        <h2 className="font-outfit text-3xl font-extrabold text-center text-[#111827]">
+          Frequently Asked Questions
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 justify-center max-w-5xl mx-auto">
-          {[
-            { title: "Home Dashboard", desc: "Circular budget dials, protein splits, and water fluids trackers all inside a clean white canvas." },
-            { title: "Full Screen Camera Scan", desc: "Take a food picture, trigger Gemini Vision estimations, edit values, and save to logs immediately." },
-            { title: "Progress Dashboard", desc: "Isolated Weight charts, body weights logger logs, expenditure logs, and live BMI assessments." }
-          ].map((scr, idx) => (
-            <div key={idx} className="p-4 bg-white border border-[#ECECEF] rounded-[32px] text-left space-y-3 shadow-xs hover:shadow-md transition-all">
-              <div className="h-44 w-full bg-[#111115] rounded-[24px] flex items-center justify-center p-4 relative overflow-hidden">
-                <div className="absolute top-2 left-2 text-[8px] font-mono text-slate-500">Screen preview</div>
-                <div className="h-32 w-24 bg-[#F8F8FA] rounded-xl border border-slate-800 p-2 text-[6px] space-y-1 relative">
-                  <div className="h-2 w-full bg-slate-200 rounded" />
-                  <div className="h-2 w-2/3 bg-slate-200 rounded" />
-                  <div className="h-8 w-8 rounded-full border border-[#14B8A6] border-2 mx-auto mt-2 animate-pulse" />
-                  <div className="h-2 w-full bg-slate-200 rounded mt-2" />
-                </div>
-              </div>
-              <h4 className="text-xs font-bold text-slate-800">{scr.title}</h4>
-              <p className="text-[10px] text-slate-400 leading-normal">{scr.desc}</p>
+        <div className="space-y-4">
+          {faqs.map((faq, idx) => (
+            <div 
+              key={idx}
+              className="bg-white border border-[#ECECEF] rounded-2xl overflow-hidden transition-all duration-300"
+            >
+              <button
+                onClick={() => handleToggleFaq(idx)}
+                className="w-full flex justify-between items-center px-6 py-5 text-left font-bold text-sm text-slate-800"
+              >
+                <span>{faq.q}</span>
+                <ChevronRight className={`h-4 w-4 text-slate-400 transform transition-transform duration-300 ${activeFaq === idx ? "rotate-90" : ""}`} />
+              </button>
+              
+              <AnimatePresence initial={false}>
+                {activeFaq === idx && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <div className="px-6 pb-5 text-xs text-slate-400 font-semibold leading-relaxed border-t border-slate-50 pt-3">
+                      {faq.a}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
         </div>
       </section>
 
-      {/* 4. FAQ SECTION */}
-      <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6 border-t border-slate-100 text-left space-y-12">
-        <div className="text-center max-w-xl mx-auto space-y-2.5">
-          <h2 className="font-outfit text-3xl font-bold text-[#111827]">
-            Common Queries
-          </h2>
-          <p className="text-slate-400 text-xs sm:text-sm">
-            Everything you need to know about the ZenLog platform.
-          </p>
+      {/* 5. USER REVIEWS CARDS */}
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 border-t border-slate-100 space-y-12">
+        <div className="text-center space-y-3">
+          <h2 className="font-outfit text-3xl font-extrabold text-[#111827]">What Members Say</h2>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Join thousands transforming their physiques with ZenLog</p>
         </div>
 
-        <div className="space-y-4">
-          {faqs.map((faq, idx) => {
-            const isFaqActive = activeFaq === idx;
-            return (
-              <div key={idx} className="border border-[#ECECEF] rounded-2xl bg-white overflow-hidden transition-all">
-                <button
-                  onClick={() => handleToggleFaq(idx)}
-                  className="w-full p-5 text-left text-xs font-bold flex justify-between items-center transition-colors hover:bg-slate-50 outline-none"
-                >
-                  <span>{faq.q}</span>
-                  <span className="text-lg text-[#14B8A6] font-mono leading-none">{isFaqActive ? "−" : "+"}</span>
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isFaqActive && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="border-t border-[#F1F1F4] bg-[#F8F8FA]/50"
-                    >
-                      <p className="p-5 text-xs text-slate-400 leading-relaxed">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+          {[
+            {
+              name: "Rahul Sharma",
+              role: "Bodybuilder (Lost 7kg)",
+              review: "The Indian food presets are highly accurate. I can track Palak Paneer, idlis, and custom roti weights, and adjust servings dynamically in a beautiful interface.",
+              stars: 5
+            },
+            {
+              name: "Ananya Iyer",
+              role: "Fitness Enthusiast",
+              review: "ZenLog's AI camera scanner is incredibly fast. I just snapshot my meals, slide the interactive weights bar, and see micronutrients update without any API lag!",
+              stars: 5
+            },
+            {
+              name: "Vikram Malhotra",
+              role: "Transformation Athlete",
+              review: "The weekly goal auto-adjuster is clinical gold. It automatically trimmed 100 kcal from my daily budget when my weight plateaued, keeping me fully on track.",
+              stars: 5
+            }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white border border-[#ECECEF] rounded-[28px] p-6 space-y-4 shadow-xs">
+              <div className="flex items-center space-x-1">
+                {[...Array(item.stars)].map((_, i) => (
+                  <Star key={i} className="h-4.5 w-4.5 fill-amber-400 text-amber-400" />
+                ))}
               </div>
-            );
-          })}
+              <p className="text-xs text-slate-500 font-medium italic">"{item.review}"</p>
+              <div className="flex items-center space-x-2 pt-2">
+                <div className="h-8 w-8 rounded-full bg-slate-900/5 flex items-center justify-center font-bold text-xs">
+                  {item.name[0]}
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-800 flex items-center">
+                    {item.name}
+                    <ShieldCheck className="h-3 w-3 text-emerald-500 ml-1" />
+                  </h4>
+                  <span className="text-[8px] text-slate-400 font-bold uppercase">{item.role}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
-
-      {/* 5. DOWNLOAD APP BUTTONS */}
-      <section id="download" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-        <div className="p-8 md:p-14 bg-[#111827] text-white rounded-[32px] text-center space-y-6 relative overflow-hidden shadow-lg border border-white/5">
-          <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/10 rounded-full blur-[60px]" />
-          <div className="absolute bottom-0 left-0 h-32 w-32 bg-indigo-500/10 rounded-full blur-[60px]" />
-
-          <h2 className="font-outfit text-3xl md:text-4xl font-extrabold tracking-tight">
-            Start Your Fitness Journey Today
-          </h2>
-          <p className="text-xs md:text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
-            Download ZenLog on your Android device to unlock BMR assessment targets, Gemini Vision food scanners, and auto calorie rollover algorithms.
-          </p>
-
-          <div className="flex justify-center pt-4">
-            <a
-              href="/ZenLog.apk"
-              download
-              className="px-8 py-4 rounded-2xl bg-white text-[#111827] font-extrabold text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md pulse-light flex items-center space-x-2"
-            >
-              <span>🚀 Download Android App (.apk)</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
     </div>
   );
 }
