@@ -1,28 +1,18 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal, SafeAreaView } from "react-native";
 import { useStore, IndianFoodItem } from "../store/useStore";
 import { useRouter } from "expo-router";
 import { 
   ArrowLeft as LucideArrowLeft, 
-  Search as LucideSearch, 
-  CheckCircle as LucideCheckCircle, 
-  Clock as LucideClock, 
-  Star as LucideStar, 
-  Plus as LucidePlus, 
-  Shield as LucideShield, 
-  Settings as LucideSettings, 
-  Info as LucideInfo 
+  Search as LucideSearch,
+  Star as LucideStar,
+  X as LucideX
 } from "lucide-react-native";
 
 const ArrowLeft = LucideArrowLeft as any;
 const Search = LucideSearch as any;
-const CheckCircle = LucideCheckCircle as any;
-const Clock = LucideClock as any;
 const Star = LucideStar as any;
-const Plus = LucidePlus as any;
-const Shield = LucideShield as any;
-const Settings = LucideSettings as any;
-const Info = LucideInfo as any;
+const X = LucideX as any;
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -30,47 +20,26 @@ export default function SearchScreen() {
     indianFoods,
     recentFoods,
     logRecentFood,
-    searchIndianFoods,
     logMeal
   } = useStore();
 
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
   const [selectedFood, setSelectedFood] = useState<IndianFoodItem | null>(null);
 
-  const categories = ["All", "North Indian", "South Indian", "Street Food", "Fast Food", "Restaurant Meals", "Vegetarian", "Non Vegetarian"];
-
-  // Filter foods by category and search query
+  // Filter foods by search query
   const getFilteredFoods = () => {
     let list = indianFoods;
-
-    if (activeCategory !== "All") {
-      list = list.filter((f) => {
-        if (activeCategory === "Vegetarian") {
-          return f.category === "Vegetarian" || f.category === "North Indian" || f.category === "South Indian" || f.name.toLowerCase().includes("paneer") || f.name.toLowerCase().includes("idli") || f.name.toLowerCase().includes("dosa");
-        }
-        if (activeCategory === "Non Vegetarian") {
-          return f.category === "Non Vegetarian" || f.name.toLowerCase().includes("chicken") || f.name.toLowerCase().includes("mutton") || f.name.toLowerCase().includes("fish");
-        }
-        return f.category === activeCategory;
-      });
-    }
-
     if (query.trim()) {
       const norm = query.toLowerCase().trim();
       list = list.filter((f) => f.name.toLowerCase().includes(norm) || f.category.toLowerCase().includes(norm));
     }
-
-    // Sort by popularity score
     return list.sort((a, b) => b.popularity_score - a.popularity_score);
   };
 
   const filteredFoods = getFilteredFoods();
 
-  // Popular foods list
-  const popularFoods = [...indianFoods]
-    .sort((a, b) => b.popularity_score - a.popularity_score)
-    .slice(0, 4);
+  // Favorite foods (Mock favorite dishes based on popular scores)
+  const favoriteFoods = indianFoods.slice(0, 3);
 
   const handleSelectFood = (food: IndianFoodItem) => {
     logRecentFood(food);
@@ -91,7 +60,7 @@ export default function SearchScreen() {
       [
         {
           food_name: selectedFood.name,
-          quantity_grams: 100, // baseline
+          quantity_grams: 100, // baseline serving size
           calories: selectedFood.calories,
           protein: selectedFood.protein,
           carbs: selectedFood.carbs,
@@ -101,510 +70,388 @@ export default function SearchScreen() {
     );
 
     Alert.alert(
-      "Logged Successfully",
-      `1 Serving of "${selectedFood.name}" has been logged to ${mealType}!`,
-      [{ text: "Close", onPress: () => setSelectedFood(null) }]
+      "Meal Logged",
+      `Successfully logged ${selectedFood.name} to ${mealType}!`,
+      [{ text: "Done", onPress: () => { setSelectedFood(null); router.replace("/(tabs)"); } }]
     );
   };
 
   return (
-    <View style={styles.container}>
-      
-      {/* Search Header Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)")}>
-          <ArrowLeft size={20} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Indian Foods DB</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
         
-        <TouchableOpacity style={styles.adminButton} onPress={() => router.push("/admin")}>
-          <Settings size={18} color="#6B7280" />
-        </TouchableOpacity>
-      </View>
+        {/* Minimal Search Header Bar */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.replace("/(tabs)")}
+            activeOpacity={0.8}
+          >
+            <ArrowLeft size={20} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Search Database</Text>
+          <View style={{ width: 40 }} /> {/* Spacer to align title */}
+        </View>
 
-      {/* Modern Search Engine Bar */}
-      <View style={styles.searchBarWrapper}>
-        <Search size={18} color="#9CA3AF" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search foods: 'Dosa', 'Paneer', 'Chicken'..."
-          placeholderTextColor="#9CA3AF"
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
-
-      {/* Horizontal categories list */}
-      <View style={styles.categoriesSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesScroll}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, activeCategory === cat && styles.categoryChipActive]}
-              onPress={() => setActiveCategory(cat)}
-            >
-              <Text style={[styles.categoryChipText, activeCategory === cat && styles.categoryChipTextActive]}>
-                {cat}
-              </Text>
+        {/* Minimalist Search Box (Soft gray background, 20px rounded) */}
+        <View style={styles.searchBox}>
+          <Search size={18} color="#9CA3AF" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search: 'Dosa', 'Paneer', 'Eggs'..."
+            placeholderTextColor="#9CA3AF"
+            value={query}
+            onChangeText={setQuery}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <X size={16} color="#6B7280" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* RECENT SEARCHES LIST */}
-        {!query && recentFoods.length > 0 && (
-          <View style={styles.dbSection}>
-            <Text style={styles.sectionTitle}>Recent Searches</Text>
-            <View style={styles.recentGrid}>
-              {recentFoods.map((food) => (
-                <TouchableOpacity
-                  key={`rec-${food.id}`}
-                  style={styles.recentItem}
-                  onPress={() => setSelectedFood(food)}
-                >
-                  <Clock size={12} color="#9CA3AF" />
-                  <Text style={styles.recentText} numberOfLines={1}>{food.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* POPULAR FOODS CARDS */}
-        {!query && activeCategory === "All" && (
-          <View style={styles.dbSection}>
-            <Text style={styles.sectionTitle}>Popular Today</Text>
-            <View style={styles.popularRow}>
-              {popularFoods.map((food) => (
-                <TouchableOpacity
-                  key={`pop-${food.id}`}
-                  style={styles.popularCard}
-                  onPress={() => handleSelectFood(food)}
-                >
-                  <View style={styles.popularHeader}>
-                    <Text style={styles.popularName} numberOfLines={1}>{food.name}</Text>
-                    {food.is_verified && <CheckCircle size={10} color="#14B8A6" />}
-                  </View>
-                  <Text style={styles.popularCal}>{food.calories} kcal</Text>
-                  <Text style={styles.popularMacros}>P: {food.protein}g • C: {food.carbs}g</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* DATABASE RESULTS */}
-        <View style={styles.dbSection}>
-          <Text style={styles.sectionTitle}>
-            {query || activeCategory !== "All" ? `Results (${filteredFoods.length})` : "Indian Specialties database"}
-          </Text>
-
-          {filteredFoods.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Info size={20} color="#9CA3AF" />
-              <Text style={styles.emptyText}>No matching Indian dishes found.</Text>
-              <TouchableOpacity style={styles.emptyAddBtn} onPress={() => router.push("/admin")}>
-                <Text style={styles.emptyAddText}>ADD CUSTOM DISH</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            filteredFoods.map((food) => (
-              <TouchableOpacity
-                key={food.id}
-                style={styles.foodRow}
-                onPress={() => handleSelectFood(food)}
-              >
-                <View style={styles.foodInfo}>
-                  <View style={styles.foodNameWrapper}>
-                    <Text style={styles.foodName}>{food.name}</Text>
-                    {food.is_verified ? (
-                      <View style={styles.badgeVerified}>
-                        <Shield size={8} color="#14B8A6" />
-                        <Text style={styles.badgeText}>VERIFIED</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.badgePending}>
-                        <Text style={styles.badgeTextPending}>USER</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.foodCat}>{food.category} • {food.serving_size}</Text>
-                </View>
-
-                <View style={styles.foodRight}>
-                  <Text style={styles.foodCalories}>{food.calories} kcal</Text>
-                  <Text style={styles.foodMacrosRecap}>P: {food.protein}g • F: {food.fat}g</Text>
-                </View>
-              </TouchableOpacity>
-            ))
           )}
         </View>
 
-      </ScrollView>
-
-      {/* DETAILED MODAL SHEET */}
-      {selectedFood && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={selectedFood !== null}
-          onRequestClose={() => setSelectedFood(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>{selectedFood.name}</Text>
-                  <Text style={styles.modalSub}>{selectedFood.category} database preset • {selectedFood.serving_size}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setSelectedFood(null)} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
+        <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          
+          {/* FAVORITE FOODS SECTION */}
+          {!query && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Favorites</Text>
+              <View style={styles.favoritesGrid}>
+                {favoriteFoods.map((food) => (
+                  <TouchableOpacity
+                    key={`fav-${food.id}`}
+                    style={styles.favCard}
+                    onPress={() => handleSelectFood(food)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.favHeader}>
+                      <Star size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+                      <Text style={styles.favName} numberOfLines={1}>{food.name}</Text>
+                    </View>
+                    <Text style={styles.favCal}>{food.calories} kcal</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-
-              {/* Nutrition Ring widget */}
-              <View style={styles.macroBox}>
-                <View style={styles.calWrapper}>
-                  <Text style={styles.calVal}>{selectedFood.calories}</Text>
-                  <Text style={styles.calLabel}>CALORIES</Text>
-                </View>
-
-                <View style={styles.macrosSplit}>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Protein</Text>
-                    <Text style={styles.splitVal}>{selectedFood.protein}g</Text>
-                  </View>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Carbohydrates</Text>
-                    <Text style={styles.splitVal}>{selectedFood.carbs}g</Text>
-                  </View>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Fat</Text>
-                    <Text style={styles.splitVal}>{selectedFood.fat}g</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Micros Grid list */}
-              <View style={styles.microsSection}>
-                <Text style={styles.microsTitle}>Essential Micro-nutrients</Text>
-                <View style={styles.microsGrid}>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.fiber}g</Text>
-                    <Text style={styles.microLabel}>Fiber</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.iron}mg</Text>
-                    <Text style={styles.microLabel}>Iron</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.calcium}mg</Text>
-                    <Text style={styles.microLabel}>Calcium</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.vitamin_d}mcg</Text>
-                    <Text style={styles.microLabel}>Vit D</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.vitamin_b12}mcg</Text>
-                    <Text style={styles.microLabel}>Vit B12</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Tap to log actions */}
-              <Text style={styles.logPrompt}>Tap to log this dish to daily budget:</Text>
-              <View style={styles.logButtonsRow}>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Breakfast")}>
-                  <Text style={styles.logBtnText}>Breakfast</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Lunch")}>
-                  <Text style={styles.logBtnText}>Lunch</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Dinner")}>
-                  <Text style={styles.logBtnText}>Dinner</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Snack")}>
-                  <Text style={styles.logBtnText}>Snack</Text>
-                </TouchableOpacity>
-              </View>
-
             </View>
-          </View>
-        </Modal>
-      )}
+          )}
 
-    </View>
+          {/* RECENT SEARCHES */}
+          {!query && recentFoods.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recent Foods</Text>
+              <View style={styles.recentList}>
+                {recentFoods.slice(0, 4).map((food) => (
+                  <TouchableOpacity
+                    key={`rec-${food.id}`}
+                    style={styles.recentRow}
+                    onPress={() => handleSelectFood(food)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.recentText}>{food.name}</Text>
+                    <Text style={styles.recentCal}>{food.calories} kcal</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* DATABASE DISHES LIST */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {query ? `Results (${filteredFoods.length})` : "Verified Dishes"}
+            </Text>
+
+            {filteredFoods.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No matching foods found</Text>
+              </View>
+            ) : (
+              filteredFoods.map((food) => (
+                <TouchableOpacity
+                  key={food.id}
+                  style={styles.foodRow}
+                  onPress={() => handleSelectFood(food)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.foodLeft}>
+                    <Text style={styles.foodName}>{food.name}</Text>
+                    <Text style={styles.foodMeta}>{food.category} • {food.serving_size}</Text>
+                  </View>
+                  <View style={styles.foodRight}>
+                    <Text style={styles.foodCal}>{food.calories} kcal</Text>
+                    <Text style={styles.foodMacros}>P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+        </ScrollView>
+
+        {/* LOGGING DETAILS SLIDE SHEET MODAL */}
+        {selectedFood && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={selectedFood !== null}
+            onRequestClose={() => setSelectedFood(null)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalCard}>
+                
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle}>{selectedFood.name}</Text>
+                    <Text style={styles.modalSubtitle}>{selectedFood.category} • {selectedFood.serving_size}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => setSelectedFood(null)} 
+                    style={styles.modalCloseBtn}
+                    activeOpacity={0.8}
+                  >
+                    <X size={18} color="#111827" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Macro summary card (Soft gray card, rounded 20px) */}
+                <View style={styles.modalMacroCard}>
+                  <View style={styles.modalCalWrapper}>
+                    <Text style={styles.modalCalVal}>{selectedFood.calories}</Text>
+                    <Text style={styles.modalCalLabel}>Calories</Text>
+                  </View>
+
+                  <View style={styles.modalMacrosSplit}>
+                    <View style={styles.splitRow}>
+                      <Text style={styles.splitLabel}>Protein</Text>
+                      <Text style={styles.splitVal}>{selectedFood.protein}g</Text>
+                    </View>
+                    <View style={styles.splitRow}>
+                      <Text style={styles.splitLabel}>Carbs</Text>
+                      <Text style={styles.splitVal}>{selectedFood.carbs}g</Text>
+                    </View>
+                    <View style={styles.splitRow}>
+                      <Text style={styles.splitLabel}>Fats</Text>
+                      <Text style={styles.splitVal}>{selectedFood.fat}g</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Micro Nutrients Summary inside clean minimal drawer */}
+                <View style={styles.microsDrawer}>
+                  <Text style={styles.fieldLabel}>Estimated Micros</Text>
+                  <View style={styles.microsGrid}>
+                    <View style={styles.microCol}>
+                      <Text style={styles.microVal}>{selectedFood.fiber}g</Text>
+                      <Text style={styles.microLabel}>Fiber</Text>
+                    </View>
+                    <View style={styles.microCol}>
+                      <Text style={styles.microVal}>{selectedFood.calcium}mg</Text>
+                      <Text style={styles.microLabel}>Calcium</Text>
+                    </View>
+                    <View style={styles.microCol}>
+                      <Text style={styles.microVal}>{selectedFood.iron}mg</Text>
+                      <Text style={styles.microLabel}>Iron</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Action 1: Instant logging to specific meals (Max 3 logs grouped as one action matrix) */}
+                <Text style={styles.logLabel}>Select Meal Log Target:</Text>
+                <View style={styles.logGrid}>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Breakfast")} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>Breakfast</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Lunch")} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>Lunch</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Dinner")} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>Dinner</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Snack")} activeOpacity={0.8}>
+                    <Text style={styles.logBtnText}>Snack</Text>
+                  </TouchableOpacity>
+                </View>
+
+              </View>
+            </View>
+          </Modal>
+        )}
+
+      </View>
+    </SafeAreaView>
   );
 }
 
-// Bypassing Lucide strict typechecks in the stylesheet
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F8F8FA",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    paddingHorizontal: 20,
-    paddingTop: 54,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   backButton: {
-    padding: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: "#F4F4F5",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
     color: "#111827",
-    letterSpacing: -0.2,
+    letterSpacing: -0.5,
   },
-  adminButton: {
-    padding: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
-  },
-  searchBarWrapper: {
+  searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 16,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20, // Strict 20px rounded corners
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 16,
     paddingHorizontal: 16,
-    height: 48,
+    height: 52,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     color: "#111827",
-    fontWeight: "bold",
-  },
-  categoriesSection: {
-    marginBottom: 10,
-  },
-  categoriesScroll: {
-    paddingHorizontal: 20,
-    paddingVertical: 4,
-  },
-  categoryChip: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  categoryChipText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#6B7280",
-  },
-  categoryChipTextActive: {
-    color: "#FFFFFF",
+    fontWeight: "700",
   },
   scrollBody: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  dbSection: {
-    marginTop: 14,
+  section: {
+    marginTop: 16,
     width: "100%",
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "900",
-    color: "#9CA3AF",
-    textTransform: "uppercase",
+    color: "#111827",
     marginBottom: 12,
     textAlign: "left",
   },
-  recentGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
-  recentItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginRight: 6,
-    marginBottom: 6,
-    maxWidth: 120,
-  },
-  recentText: {
-    fontSize: 10,
-    color: "#4B5563",
-    fontWeight: "bold",
-    marginLeft: 4,
-  },
-  popularRow: {
+  favoritesGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10,
     flexWrap: "wrap",
+    marginBottom: 8,
   },
-  popularCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 18,
-    padding: 12,
-    width: "48%",
-    marginBottom: 10,
+  favCard: {
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 14,
+    width: "31%",
     alignItems: "flex-start",
   },
-  popularHeader: {
+  favHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     width: "100%",
   },
-  popularName: {
+  favName: {
     fontSize: 11,
-    fontWeight: "900",
+    fontWeight: "800",
     color: "#111827",
     flex: 1,
-    textAlign: "left",
   },
-  popularCal: {
+  favCal: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#10B981",
+    color: "#3B82F6",
     marginTop: 6,
   },
-  popularMacros: {
-    fontSize: 8,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 2,
+  recentList: {
+    marginBottom: 8,
+  },
+  recentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  recentText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  recentCal: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#6B7280",
   },
   foodRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 18,
-    padding: 14,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 8,
   },
-  foodInfo: {
+  foodLeft: {
     flex: 1,
     alignItems: "flex-start",
   },
-  foodNameWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   foodName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "900",
     color: "#111827",
   },
-  badgeVerified: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E6F4F1",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  badgePending: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  badgeText: {
-    fontSize: 6,
-    fontWeight: "900",
-    color: "#14B8A6",
-    marginLeft: 2,
-  },
-  badgeTextPending: {
-    fontSize: 6,
-    fontWeight: "900",
-    color: "#9CA3AF",
-  },
-  foodCat: {
-    fontSize: 9,
-    color: "#9CA3AF",
-    fontWeight: "bold",
+  foodMeta: {
+    fontSize: 10,
+    color: "#6B7280",
+    fontWeight: "700",
     marginTop: 4,
   },
   foodRight: {
     alignItems: "flex-end",
   },
-  foodCalories: {
-    fontSize: 12,
+  foodCal: {
+    fontSize: 13,
     fontWeight: "900",
     color: "#111827",
   },
-  foodMacrosRecap: {
-    fontSize: 8,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 2,
+  foodMacros: {
+    fontSize: 9,
+    color: "#6B7280",
+    fontWeight: "700",
+    marginTop: 4,
   },
   emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 24,
-    padding: 30,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    paddingVertical: 36,
     alignItems: "center",
-    justifyContent: "center",
   },
   emptyText: {
-    fontSize: 11,
+    fontSize: 13,
     color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 8,
-  },
-  emptyAddBtn: {
-    backgroundColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  emptyAddText: {
-    color: "#FFFFFF",
-    fontSize: 8,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,
@@ -613,73 +460,63 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     padding: 24,
     paddingBottom: 40,
-    maxHeight: "85%",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    paddingBottom: 16,
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#111827",
-    textAlign: "left",
-  },
-  modalSub: {
-    fontSize: 10,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 4,
-    textAlign: "left",
-  },
-  closeButton: {
-    padding: 6,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 99,
-  },
-  closeButtonText: {
-    fontSize: 14,
-    color: "#4B5563",
-    fontWeight: "bold",
-  },
-  macroBox: {
-    flexDirection: "row",
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 24,
-    padding: 20,
-    alignItems: "center",
     marginBottom: 20,
   },
-  calWrapper: {
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#111827",
+  },
+  modalSubtitle: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    height: 36,
+    width: 36,
+    borderRadius: 18,
+    backgroundColor: "#F4F4F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalMacroCard: {
+    flexDirection: "row",
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalCalWrapper: {
     width: "40%",
     borderRightWidth: 1,
     borderRightColor: "#E5E7EB",
     alignItems: "center",
   },
-  calVal: {
-    fontSize: 28,
+  modalCalVal: {
+    fontSize: 32,
     fontWeight: "900",
     color: "#111827",
   },
-  calLabel: {
-    fontSize: 8,
+  modalCalLabel: {
+    fontSize: 9,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
     marginTop: 2,
   },
-  macrosSplit: {
+  modalMacrosSplit: {
     flex: 1,
     paddingLeft: 20,
   },
@@ -687,77 +524,74 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginVertical: 4,
+    marginVertical: 2,
   },
   splitLabel: {
-    fontSize: 11,
-    fontWeight: "bold",
-    color: "#4B5563",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
   },
   splitVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
     color: "#111827",
   },
-  microsSection: {
-    marginBottom: 24,
-    alignItems: "flex-start",
+  microsDrawer: {
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
   },
-  microsTitle: {
-    fontSize: 11,
+  fieldLabel: {
+    fontSize: 10,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
-    marginBottom: 12,
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
   microsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
   },
   microCol: {
-    width: "18%",
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingVertical: 8,
+    width: "30%",
     alignItems: "center",
   },
   microVal: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "900",
     color: "#111827",
   },
   microLabel: {
-    fontSize: 7,
-    fontWeight: "900",
-    color: "#9CA3AF",
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#6B7280",
     marginTop: 2,
   },
-  logPrompt: {
-    fontSize: 10,
+  logLabel: {
+    fontSize: 11,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
     marginBottom: 10,
     textAlign: "left",
   },
-  logButtonsRow: {
+  logGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   logBtn: {
     flex: 1,
-    backgroundColor: "#111827",
+    backgroundColor: "#3B82F6", // Unified Brand Accent
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: "center",
-    marginHorizontal: 3,
+    marginHorizontal: 4,
   },
   logBtnText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
   },
 });
