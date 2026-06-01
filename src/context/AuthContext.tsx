@@ -47,8 +47,26 @@ function promiseTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(SESSION_KEY);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(SESSION_KEY);
+      if (stored) return false;
+    }
+    return true;
+  });
 
   // Sync user state on Firebase auth changes
   useEffect(() => {
@@ -73,8 +91,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (userSnap.exists()) {
               const data = userSnap.data();
-              isOnboarded = data.isOnboarded || false;
+              isOnboarded = data.onboardingCompleted || data.isOnboarded || false;
               createdAt = data.createdAt?.toDate?.()?.toISOString() || data.createdAt || createdAt;
+
+              // Restore onboarding details from Firestore to local storage
+              if (isOnboarded && data.weight !== undefined) {
+                const onboardingData = {
+                  gender: data.gender || "male",
+                  age: data.age || 25,
+                  height: data.height || 170,
+                  currentWeight: data.weight || data.currentWeight || 70,
+                  targetWeight: data.targetWeight || 70,
+                  goal: data.goal || "maintain",
+                  activityLevel: data.activityLevel || "moderate",
+                };
+                localStorage.setItem(`zenlog_onboarding_${firebaseUser.uid}`, JSON.stringify(onboardingData));
+              }
             } else {
               // New user registration (Limit Firestore write to 4 seconds)
               await promiseTimeout(setDoc(userRef, {
@@ -84,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(firebaseUser.uid)}`,
                 role: role,
                 isOnboarded: role === "admin", // Admin bypass onboarding
+                onboardingCompleted: role === "admin",
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
               }), 4000);
@@ -91,9 +124,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (firestoreError: any) {
             console.warn("Firestore sync failed or timed out. Falling back to local/auth profile.", firestoreError.message);
-            // Fallback: If Firestore fails or times out (e.g. database not enabled), construct a valid user session anyway!
-            // This guarantees the login flow NEVER freezes or blocks the user.
-            isOnboarded = role === "admin"; // Admins bypass onboarding
+            // Fallback: If Firestore fails or times out, try to get onboarding status from localStorage
+            const localOnboarding = localStorage.getItem(`zenlog_onboarding_${firebaseUser.uid}`);
+            const localSession = localStorage.getItem(SESSION_KEY);
+            if (localOnboarding) {
+              isOnboarded = true;
+            } else if (localSession) {
+              try {
+                const parsed = JSON.parse(localSession);
+                if (parsed && parsed.id === firebaseUser.uid) {
+                  isOnboarded = parsed.isOnboarded || false;
+                }
+              } catch (e) {}
+            } else {
+              isOnboarded = role === "admin";
+            }
           }
 
           const u: User = {

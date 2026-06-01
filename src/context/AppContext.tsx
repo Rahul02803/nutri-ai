@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { OnboardingData, CalculatedTargets, calculateNutritionTargets } from "@/lib/calculations";
 import { FoodItem, INITIAL_FOODS } from "@/lib/foods";
 import { useAuth } from "./AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export interface LoggedMeal {
   id: string;
@@ -505,6 +507,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(`zenlog_onboarding_${user.id}`, JSON.stringify(data));
     localStorage.removeItem(`zenlog_manual_targets_${user.id}`);
     updateUserOnboardStatus(true);
+
+    // Save all onboarding questionnaire responses to Firestore
+    try {
+      const userRef = doc(db, "users", user.id);
+      setDoc(userRef, {
+        uid: user.id,
+        email: user.email,
+        displayName: user.name,
+        photoURL: user.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(user.id)}`,
+        onboardingCompleted: true,
+        isOnboarded: true,
+        age: data.age,
+        gender: data.gender,
+        height: data.height,
+        weight: data.currentWeight,
+        goal: data.goal,
+        activityLevel: data.activityLevel,
+        targetWeight: data.targetWeight,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(err => {
+        console.warn("Firestore save onboarding background failed:", err.message);
+      });
+    } catch (e) {
+      console.warn("Firestore save onboarding failed", e);
+    }
 
     try {
       const todayStr = new Date().toISOString().split("T")[0];

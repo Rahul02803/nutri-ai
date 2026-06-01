@@ -180,91 +180,8 @@ export default function ScannerPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-6 space-y-6 text-[#111827] bg-[#F8F8FA] min-h-screen pb-32">
+    <div className="relative flex flex-col justify-between bg-black text-white min-h-screen font-inter select-none overflow-hidden pb-12">
       
-      {/* Brand Header */}
-      <div className="text-left flex justify-between items-start">
-        <div>
-          <h1 className="font-outfit text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <span>📷</span> AI Food Scanner
-          </h1>
-          <p className="text-xs text-slate-400">
-            Powered by live Gemini 1.5 Flash Vision.
-          </p>
-        </div>
-
-        {/* API Key Toggle Indicator */}
-        <button
-          onClick={() => setShowKeyInput(!showKeyInput)}
-          className={`p-2 rounded-xl border flex items-center justify-center transition-all ${
-            isKeySaved 
-              ? "bg-emerald-50 text-emerald-600 border-emerald-200" 
-              : "bg-amber-50 text-amber-600 border-amber-200"
-          }`}
-          title="Configure Gemini API Key"
-        >
-          <Key className="h-4.5 w-4.5" />
-        </button>
-      </div>
-
-      {/* API Key Configuration Dropdown */}
-      <AnimatePresence>
-        {showKeyInput && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <form onSubmit={saveApiKeyToLocal} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-xs text-xs font-bold text-slate-700 space-y-3">
-              <div className="flex justify-between items-center">
-                <span>Gemini API Key Setup</span>
-                {isKeySaved && (
-                  <button type="button" onClick={handleClearApiKey} className="text-rose-500 text-[10px] hover:underline">
-                    Clear Saved Key
-                  </button>
-                )}
-              </div>
-
-              <input
-                type="password"
-                required
-                value={clientApiKey}
-                onChange={(e) => setClientApiKey(e.target.value)}
-                placeholder="Paste your API key starting with AIzaSy..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 focus:outline-none"
-              />
-
-              <button
-                type="submit"
-                className="w-full py-2 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 text-center"
-              >
-                Save key to browser
-              </button>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Error notification banner */}
-      {errorText && (
-        <div className="rounded-2xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-left flex items-start space-x-2 text-rose-700">
-          <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-bold">Scan Failed</p>
-            <p className="text-[10px] text-rose-600 mt-0.5">{errorText}</p>
-            {!isKeySaved && (
-              <button 
-                onClick={() => setShowKeyInput(true)} 
-                className="text-[10px] text-[#14B8A6] font-bold underline mt-1 block"
-              >
-                Configure your Gemini API Key first
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Hidden file input */}
       <input
         type="file"
@@ -276,57 +193,124 @@ export default function ScannerPage() {
 
       <AnimatePresence mode="wait">
         
-        {/* VIEW 1: CAMERA VIEWPORT */}
+        {/* VIEW 1: FULL SCREEN CAMERA VIEWPORT */}
         {scanState === "viewport" && (
           <motion.div
             key="viewport"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="space-y-4"
+            className="absolute inset-0 flex flex-col justify-between p-6 z-10"
           >
-            <div className="h-96 w-full bg-[#111115] rounded-[32px] overflow-hidden relative flex flex-col justify-between p-6 border-4 border-slate-900 shadow-md">
-              <div className="flex justify-between items-center text-white/50 text-[10px] font-mono">
-                <span>[ 4K MULTIMODAL SCAN ]</span>
-                <span className="animate-pulse text-[#14B8A6] font-bold">● ONLINE READY</span>
-              </div>
+            {/* Top Row: Close and Key Setup */}
+            <div className="flex justify-between items-center pt-8">
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/5 active:scale-95 transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
 
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                <div className="h-44 w-44 border-2 border-white rounded-2xl" />
-              </div>
+              <button
+                onClick={() => setShowKeyInput(!showKeyInput)}
+                className={`h-10 w-10 rounded-full backdrop-blur-md flex items-center justify-center border transition-all ${
+                  isKeySaved 
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                    : "bg-white/10 border-white/5 text-white"
+                }`}
+              >
+                <Key className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div className="text-center z-10 text-white/60 space-y-1">
-                <p className="text-xs font-bold">ZenLog Visual Assessment</p>
-                <p className="text-[9px] max-w-[200px] mx-auto">
-                  Click gallery or capture to feed base64 image data directly to Google Generative AI endpoints.
-                </p>
-              </div>
-
-              <div className="flex justify-around items-center pt-4 z-10">
-                <button
-                  onClick={triggerFileInput}
-                  className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
-                  title="Gallery Upload"
+            {/* API Key Configuration Card */}
+            <AnimatePresence>
+              {showKeyInput && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mt-4 z-50 absolute left-6 right-6 top-20"
                 >
-                  <ImageIcon className="h-5 w-5" />
-                </button>
+                  <form onSubmit={saveApiKeyToLocal} className="bg-neutral-900 border border-neutral-800 p-5 rounded-[24px] text-xs font-bold text-slate-300 space-y-3 shadow-2xl">
+                    <div className="flex justify-between items-center text-white uppercase tracking-wider font-mono text-[9px]">
+                      <span>Gemini API Key Setup</span>
+                      {isKeySaved && (
+                        <button type="button" onClick={handleClearApiKey} className="text-rose-400 font-extrabold lowercase hover:underline">
+                          Clear Saved Key
+                        </button>
+                      )}
+                    </div>
 
-                <button
-                  onClick={triggerFileInput}
-                  className="h-16 w-16 rounded-full bg-[#111827] border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
-                  title="Capture Plate"
-                >
-                  <div className="h-8 w-8 rounded-full bg-[#3B82F6]" />
-                </button>
+                    <input
+                      type="password"
+                      required
+                      value={clientApiKey}
+                      onChange={(e) => setClientApiKey(e.target.value)}
+                      placeholder="Paste your API key starting with AIzaSy..."
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 focus:outline-none text-white text-xs"
+                    />
 
-                <button
-                  onClick={() => setScanState("results")}
-                  className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center active:scale-95 transition-all"
-                  title="Manual Entry"
-                >
-                  <Edit3 className="h-5 w-5" />
-                </button>
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-white text-black rounded-xl font-black hover:bg-neutral-200 text-center uppercase tracking-wider font-mono text-[10px]"
+                    >
+                      Save key to browser
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Error notifications */}
+            {errorText && (
+              <div className="absolute left-6 right-6 top-24 rounded-2xl bg-rose-950/80 border border-rose-900/50 backdrop-blur-md p-4 text-xs text-left flex items-start space-x-2.5 text-rose-200">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-extrabold text-rose-100">Scan Failed</p>
+                  <p className="text-[10px] text-rose-300 mt-0.5 leading-relaxed">{errorText}</p>
+                </div>
               </div>
+            )}
+
+            {/* Central scanning brackets */}
+            <div className="flex-grow flex items-center justify-center pointer-events-none opacity-30 my-16">
+              <div className="relative h-64 w-64 border-2 border-dashed border-white rounded-[32px] flex items-center justify-center">
+                <div className="h-10 w-10 border-t-2 border-l-2 border-white absolute top-0 left-0 rounded-tl-xl" />
+                <div className="h-10 w-10 border-t-2 border-r-2 border-white absolute top-0 right-0 rounded-tr-xl" />
+                <div className="h-10 w-10 border-b-2 border-l-2 border-white absolute bottom-0 left-0 rounded-bl-xl" />
+                <div className="h-10 w-10 border-b-2 border-r-2 border-white absolute bottom-0 right-0 rounded-br-xl" />
+              </div>
+            </div>
+
+            {/* Bottom Shutter Row: No extra buttons */}
+            <div className="flex justify-around items-center pb-8">
+              {/* Gallery upload */}
+              <button
+                onClick={triggerFileInput}
+                className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/5 text-white flex items-center justify-center active:scale-95 transition-all"
+                title="Gallery Upload"
+              >
+                <ImageIcon className="h-5.5 w-5.5" />
+              </button>
+
+              {/* Shutter button */}
+              <button
+                onClick={triggerFileInput}
+                className="h-20 w-20 rounded-full bg-transparent border-4 border-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                title="Capture Plate"
+              >
+                <div className="h-14 w-14 rounded-full bg-white" />
+              </button>
+
+              {/* Manual input fallback */}
+              <button
+                onClick={() => setScanState("results")}
+                className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/5 text-white flex items-center justify-center active:scale-95 transition-all"
+                title="Manual Entry"
+              >
+                <Edit3 className="h-5.5 w-5.5" />
+              </button>
             </div>
           </motion.div>
         )}
@@ -335,20 +319,20 @@ export default function ScannerPage() {
         {scanState === "analyzing" && (
           <motion.div
             key="analyzing"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            className="h-96 w-full bg-white border border-slate-100 rounded-[32px] flex flex-col items-center justify-center space-y-6 p-8 text-center shadow-xs"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black flex flex-col items-center justify-center space-y-6 p-8 text-center"
           >
-            <div className="relative h-20 w-20 flex items-center justify-center">
-              <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
-              <div className="absolute inset-0 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
-              <Sparkles className="h-7 w-7 text-[#3B82F6] animate-pulse" />
+            <div className="relative h-24 w-24 flex items-center justify-center">
+              <div className="absolute inset-0 border-4 border-white/10 rounded-full" />
+              <div className="absolute inset-0 border-4 border-white border-t-transparent rounded-full animate-spin" />
+              <Sparkles className="h-8 w-8 text-white animate-pulse" />
             </div>
 
             <div className="space-y-2">
-              <h3 className="font-outfit text-md font-extrabold text-slate-800">Gemini 1.5 Flash Vision</h3>
-              <p className="text-[10px] text-slate-400 font-mono pulse-light">Scanning food items & matching against nutrition database...</p>
+              <h3 className="font-outfit text-lg font-black text-white uppercase tracking-wider font-mono text-sm">ZenLog AI Vision</h3>
+              <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest animate-pulse">Analyzing portion size & nutritional properties...</p>
             </div>
           </motion.div>
         )}
@@ -357,68 +341,68 @@ export default function ScannerPage() {
         {scanState === "results" && (
           <motion.div
             key="results"
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            className="bg-white border border-slate-100 rounded-[32px] p-6 text-left shadow-xs space-y-4"
+            exit={{ opacity: 0, y: -30 }}
+            className="absolute inset-x-0 bottom-0 bg-white text-black rounded-t-[40px] p-8 space-y-6 shadow-2xl z-20"
           >
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
               <div>
-                <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400 block">AI Estimation Sheet</span>
-                <h3 className="font-outfit text-sm font-extrabold text-slate-800">Confirm Log Details</h3>
+                <span className="text-[10px] uppercase tracking-widest font-black text-slate-400 font-mono">AI Portion Analysis</span>
+                <h3 className="font-outfit text-xl font-black text-black">Confirm Details</h3>
               </div>
               <button
                 onClick={() => setScanState("viewport")}
-                className="p-1.5 rounded-full bg-slate-50 hover:bg-slate-100"
+                className="p-2 rounded-full bg-slate-50 hover:bg-slate-100 text-black"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Low Confidence warning block */}
             {lowConfidenceWarning && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100 flex items-start space-x-2.5 text-amber-800 text-[10.5px]">
-                <AlertTriangle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-amber-600" />
+              <div className="p-4 rounded-[20px] bg-amber-50 border border-amber-100 flex items-start space-x-2.5 text-amber-800 text-xs">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-amber-600" />
                 <div>
-                  <p className="font-extrabold">Not Fully Confident ({Math.round(confidence * 100)}%)</p>
-                  <p className="text-amber-700 mt-0.5 leading-relaxed">
-                    We are not fully confident. Please confirm or correct the food selection below.
+                  <p className="font-extrabold text-amber-900">Estimation confidence low ({Math.round(confidence * 100)}%)</p>
+                  <p className="text-amber-700 mt-1 leading-relaxed">
+                    Double check the macronutrients and food description before saving.
                   </p>
                 </div>
               </div>
             )}
 
-            <form onSubmit={handleSaveMeal} className="space-y-4 text-xs font-bold text-slate-700">
+            <form onSubmit={handleSaveMeal} className="space-y-5 text-xs font-bold text-slate-700">
               
-              <div className="space-y-1">
-                <label>Food Item Description</label>
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Food Description</label>
                 <input
                   type="text"
                   required
                   value={foodName}
                   onChange={(e) => setFoodName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                  className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-3.5 px-4 focus:outline-none focus:border-slate-300 font-bold text-black text-sm"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1 col-span-1">
-                  <label>Serving Size</label>
+                <div className="space-y-1.5 text-left col-span-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Portion</label>
                   <input
                     type="number"
                     step="0.1"
                     required
                     value={servings}
                     onChange={(e) => setServings(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-3.5 px-4 focus:outline-none text-black text-sm font-extrabold"
                   />
                 </div>
-                <div className="space-y-1 col-span-1">
-                  <label>Unit</label>
+                <div className="space-y-1.5 text-left col-span-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Unit</label>
                   <select
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-2 focus:outline-none font-bold"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-3.5 px-4 focus:outline-none text-black text-sm font-extrabold"
                   >
                     <option value="serving">serving</option>
                     <option value="grams">g</option>
@@ -427,57 +411,57 @@ export default function ScannerPage() {
                     <option value="pieces">pcs</option>
                   </select>
                 </div>
-                <div className="space-y-1 col-span-1">
-                  <label>Calories (kcal)</label>
+                <div className="space-y-1.5 text-left col-span-1">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono">Calories</label>
                   <input
                     type="number"
                     required
                     value={calories}
                     onChange={(e) => setCalories(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 focus:outline-none font-mono"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-3.5 px-4 focus:outline-none text-black text-sm font-black font-mono text-emerald-600"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 pt-1">
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px]">Protein (g)</label>
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono text-center block">🥩 Protein</label>
                   <input
                     type="number"
                     required
                     value={protein}
                     onChange={(e) => setProtein(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-2.5 px-3 focus:outline-none text-black text-center font-black text-sm font-mono"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px]">Carbs (g)</label>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono text-center block">🌾 Carbs</label>
                   <input
                     type="number"
                     required
                     value={carbs}
                     onChange={(e) => setCarbs(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-2.5 px-3 focus:outline-none text-black text-center font-black text-sm font-mono"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-slate-400 text-[10px]">Fat (g)</label>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest font-mono text-center block">🥑 Fat</label>
                   <input
                     type="number"
                     required
                     value={fat}
                     onChange={(e) => setFat(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2.5 focus:outline-none text-center font-mono"
+                    className="w-full bg-[#F4F4F5] border border-transparent rounded-[20px] py-2.5 px-3 focus:outline-none text-black text-center font-black text-sm font-mono"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-2xl bg-slate-900 text-white font-extrabold hover:bg-slate-800 transition-all text-center flex items-center justify-center space-x-1.5 shadow-sm"
+                className="w-full py-4 rounded-[20px] bg-black text-white font-extrabold hover:bg-slate-800 transition-all text-center flex items-center justify-center space-x-2 text-sm mt-4 shadow-md"
               >
-                <Check className="h-4 w-4" />
-                <span>Save Meal to Dashboard</span>
+                <Check className="h-5 w-5" />
+                <span>Save to Dashboard</span>
               </button>
             </form>
           </motion.div>

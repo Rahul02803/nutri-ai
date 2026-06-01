@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export interface UserProfile {
   id: string;
@@ -541,25 +543,10 @@ const generatePreloadedLogs = () => {
 
 const preloaded = generatePreloadedLogs();
 
-export const useStore = create<ZenlogState>((set, get) => ({
-  user: {
-    id: "usr_guest",
-    email: "guest@zenlog.ai",
-    name: "Aarav Sharma",
-    age: 26,
-    gender: "male",
-    height: 178,
-    current_weight: 78.4,
-    target_weight: 72.0,
-    activity_level: "moderate",
-    goal: "cut",
-    diet_preference: "vegetarian",
-    steps_goal: 10000,
-    target_calories: 1850,
-    target_protein: 150,
-    target_carbs: 180,
-    target_fat: 58
-  },
+export const useStore = create<ZenlogState>()(
+  persist(
+    (set, get) => ({
+      user: null,
   meals: preloaded.meals,
   weightLogs: preloaded.weightLogs,
   predictions: [],
@@ -985,4 +972,7 @@ export const useStore = create<ZenlogState>((set, get) => ({
       consistency: Math.round(consistencyScore)
     };
   }
+}), {
+  name: "zenlog-storage-v3",
+  storage: createJSONStorage(() => AsyncStorage)
 })));

@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
-  const { onboardingData, weightLogs } = useApp();
+  const { onboardingData, weightLogs, targets } = useApp();
   const router = useRouter();
 
   if (!user) return null;
@@ -80,6 +80,16 @@ export default function ProfilePage() {
           <div className="flex justify-between items-center border-b border-slate-50 pb-2">
             <span className="text-slate-400 flex items-center gap-1.5"><Heart className="h-4 w-4" /> Food Preference</span>
             <span className="text-slate-800 capitalize">{onboardingData?.dietPreference || "Vegetarian"}</span>
+          </div>
+
+          <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+            <span className="text-slate-400 flex items-center gap-1.5">⚡ Daily Calorie Target</span>
+            <span className="text-[#3B82F6] font-mono font-extrabold">{targets?.targetCalories || 2000} kcal</span>
+          </div>
+
+          <div className="flex justify-between items-center border-b border-slate-50 pb-2">
+            <span className="text-slate-400 flex items-center gap-1.5">🥩 Daily Protein Goal</span>
+            <span className="text-slate-800 font-mono font-extrabold">{targets?.targetProtein || 140} g</span>
           </div>
 
           <div className="flex justify-between items-center">
