@@ -29,12 +29,30 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setError(null);
     setBusy(true);
+
+    // Timeout fallback protection: If auth hangs for more than 15s, force reset states and show exact required error message
+    const authTimeout = setTimeout(() => {
+      setBusy(false);
+      setError("Unable to complete Google Sign-In. Please try again.");
+      console.warn("Auth trigger timed out on client after 15 seconds.");
+    }, 15000);
     
-    const result = await loginWithGoogle();
-    
-    setBusy(false);
-    if (!result.success) {
-      setError(result.error || "Google authentication failed.");
+    try {
+      console.log("Initiating Google Sign-In flow...");
+      const result = await loginWithGoogle();
+      clearTimeout(authTimeout);
+      
+      setBusy(false);
+      if (!result.success) {
+        setError(result.error || "Unable to complete Google Sign-In. Please try again.");
+      } else {
+        console.log("Google Sign-In promise resolved successfully!");
+      }
+    } catch (e: any) {
+      clearTimeout(authTimeout);
+      setBusy(false);
+      setError("Unable to complete Google Sign-In. Please try again.");
+      console.error("Uncaught exception during Google Sign-In:", e);
     }
   };
 

@@ -27,6 +27,25 @@ interface AuthContextType {
 const SESSION_KEY = "zenlog_session_v3";
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper to wrap promises in a timeout to prevent hanging on Firestore or network calls
+function promiseTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("TIMEOUT"));
+    }, ms);
+    promise.then(
+      (res) => {
+        clearTimeout(timer);
+        resolve(res);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,30 +60,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const tokenResult = await firebaseUser.getIdTokenResult();
           const role = tokenResult.claims.role === "admin" ? "admin" : "user";
 
-          // Sync with Firestore
+          // Sync with Firestore (wrapped in timeout to prevent hanging if API is disabled or offline)
           const userRef = doc(db, "users", firebaseUser.uid);
-          const userSnap = await getDoc(userRef);
-
+          
           let isOnboarded = false;
           let createdAt = new Date().toISOString();
 
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            isOnboarded = data.isOnboarded || false;
-            createdAt = data.createdAt?.toDate?.()?.toISOString() || data.createdAt || createdAt;
-          } else {
-            // New user registration
-            await setDoc(userRef, {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
-              photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(firebaseUser.uid)}`,
-              role: role,
-              isOnboarded: role === "admin", // Admin bypass onboarding
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp()
-            });
-            isOnboarded = role === "admin";
+          try {
+            console.log("Syncing user profile with Firestore...");
+            // Limit Firestore read to 4 seconds
+            const userSnap = await promiseTimeout(getDoc(userRef), 4000);
+
+            if (userSnap.exists()) {
+              const data = userSnap.data();
+              isOnboarded = data.isOnboarded || false;
+              createdAt = data.createdAt?.toDate?.()?.toISOString() || data.createdAt || createdAt;
+            } else {
+              // New user registration (Limit Firestore write to 4 seconds)
+              await promiseTimeout(setDoc(userRef, {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+                photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(firebaseUser.uid)}`,
+                role: role,
+                isOnboarded: role === "admin", // Admin bypass onboarding
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              }), 4000);
+              isOnboarded = role === "admin";
+            }
+          } catch (firestoreError: any) {
+            console.warn("Firestore sync failed or timed out. Falling back to local/auth profile.", firestoreError.message);
+            // Fallback: If Firestore fails or times out (e.g. database not enabled), construct a valid user session anyway!
+            // This guarantees the login flow NEVER freezes or blocks the user.
+            isOnboarded = role === "admin"; // Admins bypass onboarding
           }
 
           const u: User = {
@@ -81,19 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(u);
           localStorage.setItem(SESSION_KEY, JSON.stringify(u));
         } catch (e) {
-          console.error("Firestore user sync error", e);
-          // If Firestore is offline or fails, check if we have a valid cached session for THIS specific logged-in user ID
-          const cached = localStorage.getItem(SESSION_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed && parsed.id === firebaseUser.uid) {
-              setUser(parsed);
-            } else {
-              setUser(null);
-            }
-          } else {
-            setUser(null);
-          }
+          console.error("Auth state processing error", e);
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -107,49 +125,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
+    
+    // Create a 15-second timeout promise
+    const timeoutPromise = new Promise<{ success: boolean; error: string }>((_, reject) => {
+      setTimeout(() => reject(new Error("TIMEOUT")), 15000);
+    });
+
     try {
       const isCapacitor = typeof window !== "undefined" && (window as any).Capacitor !== undefined;
 
-      if (isCapacitor) {
-        // Native Google Sign-In using Capawesome
-        const { GoogleSignIn } = await import("@capawesome/capacitor-google-sign-in");
-        
-        // Retrieve Web Client ID from environment variables
-        const webClientId = process.env.NEXT_PUBLIC_FIREBASE_WEB_CLIENT_ID;
+      const authPromise = (async () => {
+        if (isCapacitor) {
+          // Native Google Sign-In using Capawesome
+          const { GoogleSignIn } = await import("@capawesome/capacitor-google-sign-in");
+          
+          // Retrieve Web Client ID from environment variables
+          const webClientId = process.env.NEXT_PUBLIC_FIREBASE_WEB_CLIENT_ID;
 
-        // Initialize Capawesome Google Sign-In
-        await GoogleSignIn.initialize({
-          clientId: webClientId || "219812492800-7ippsfdik24c7mma24c6s0hrgc2csgsh.apps.googleusercontent.com", // Live Web client ID
-          scopes: ["profile", "email"],
-        });
+          // Initialize Capawesome Google Sign-In
+          await GoogleSignIn.initialize({
+            clientId: webClientId || "219812492800-7ippsfdik24c7mma24c6s0hrgc2csgsh.apps.googleusercontent.com", // Live Web client ID
+            scopes: ["profile", "email"],
+          });
 
-        // Trigger native Google Account Picker prompt inside the app
-        const result = await GoogleSignIn.signIn();
-        
-        if (!result.idToken) {
-          throw new Error("Failed to retrieve Google Auth ID Token from native prompt.");
+          // Trigger native Google Account Picker prompt inside the app
+          const result = await GoogleSignIn.signIn();
+          
+          if (!result.idToken) {
+            throw new Error("Failed to retrieve Google Auth ID Token from native prompt.");
+          }
+
+          // Authenticate into Firebase with the native credential
+          const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth");
+          const credential = GoogleAuthProvider.credential(result.idToken);
+          await signInWithCredential(auth, credential);
+          
+          return { success: true };
+        } else {
+          // Standard Web Google Sign-In popup
+          await signInWithPopup(auth, googleProvider);
+          return { success: true };
         }
+      })();
 
-        // Authenticate into Firebase with the native credential
-        const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth");
-        const credential = GoogleAuthProvider.credential(result.idToken);
-        await signInWithCredential(auth, credential);
-        
-        setLoading(false);
-        return { success: true };
-      } else {
-        // Standard Web Google Sign-In popup
-        await signInWithPopup(auth, googleProvider);
-        setLoading(false);
-        return { success: true };
-      }
+      // Race authentication against the 15-second timeout
+      const result = await Promise.race([authPromise, timeoutPromise]);
+      setLoading(false);
+      return result;
+
     } catch (e: any) {
       setLoading(false);
       console.error("Authentication Error Details:", e);
       
-      let errorMsg = "Unable to sign in with Google. Please try again.";
-      if (e.code === "auth/popup-closed-by-user" || e.message?.includes("cancelled") || e.code === "12501" || e.message?.includes("12501")) {
-        // Code 12501 represents cancelled native login
+      let errorMsg = "Unable to complete Google Sign-In. Please try again.";
+      if (e.message === "TIMEOUT") {
+        errorMsg = "Unable to complete Google Sign-In. Please try again.";
+      } else if (e.code === "auth/popup-closed-by-user" || e.message?.includes("cancelled") || e.code === "12501" || e.message?.includes("12501")) {
         errorMsg = "Login was cancelled. Please select a Google account to log in.";
       } else if (e.code === "auth/network-request-failed" || e.message?.includes("network")) {
         errorMsg = "Authentication failed. Check your internet connection.";
