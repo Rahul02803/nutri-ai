@@ -34,17 +34,16 @@ export default function RootLayout({
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
-      <body className="antialiased min-h-screen bg-[#F8F8FA] text-[#111111] flex flex-col">
+      <body className="antialiased min-h-screen bg-[#F4F4F6] text-[#111111] flex items-stretch justify-center">
         <AuthProvider>
           <AppProvider>
-            <NavigationHeader />
-            <main className="flex-grow pt-16 pb-32">
-              {children}
-            </main>
-            <BottomNavBar />
-            <footer className="py-8 text-center text-xs text-[#8D8D92] border-t border-slate-100 bg-[#F8F8FA]">
-              <p>© {new Date().getFullYear()} ZenLog. Cal AI Premium Nutrition. All rights reserved.</p>
-            </footer>
+            {/* Native Mobile Viewport Container Shell */}
+            <div className="w-full max-w-md min-h-screen bg-[#FFFFFF] flex flex-col relative shadow-[0_0_60px_rgba(0,0,0,0.05)] border-x border-[#ECECEF] overflow-x-hidden">
+              <main className="flex-grow">
+                {children}
+              </main>
+              <BottomNavBar />
+            </div>
           </AppProvider>
         </AuthProvider>
       </body>

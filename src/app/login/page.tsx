@@ -57,11 +57,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col justify-between bg-[#0A0A0A] p-8 text-white select-none overflow-hidden font-inter">
+    <div className="relative flex min-h-screen w-full flex-col justify-between bg-white p-8 text-black select-none overflow-hidden font-inter">
       
-      {/* Background ambient purple glow spark */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[350px] w-[350px] rounded-full bg-[#8B5CF6]/5 blur-[100px] pointer-events-none -z-10" />
-
       {/* Ambient Notifications */}
       <AnimatePresence>
         {error && (
@@ -69,12 +66,12 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-6 left-4 right-4 z-50 mx-auto max-w-sm rounded-2xl bg-rose-950/80 border border-rose-900/50 backdrop-blur-md text-rose-200 p-4 text-xs shadow-md flex items-start space-x-3"
+            className="absolute top-6 left-4 right-4 z-50 mx-auto max-w-sm rounded-2xl bg-rose-50 border border-rose-200 backdrop-blur-md text-rose-800 p-4 text-xs shadow-md flex items-start space-x-3"
           >
             <span className="text-sm">⚠️</span>
             <div>
-              <p className="font-extrabold text-rose-100">Auth Alert</p>
-              <p className="text-[10px] text-rose-300 mt-0.5 leading-relaxed">{error}</p>
+              <p className="font-extrabold text-rose-900">Auth Alert</p>
+              <p className="text-[10px] text-rose-700 mt-0.5 leading-relaxed">{error}</p>
             </div>
           </motion.div>
         )}
@@ -90,7 +87,7 @@ export default function LoginPage() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-white/[0.08] bg-[#161616] p-3 shadow-md"
+          className="flex h-16 w-16 items-center justify-center rounded-[24px] border border-slate-100 bg-white p-3 shadow-[0_8px_30px_rgba(0,0,0,0.015)]"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="ZenLog Logo" className="h-10 w-10 object-contain" />
@@ -98,12 +95,12 @@ export default function LoginPage() {
 
         {/* Tagline */}
         <div className="space-y-4">
-          <h2 className="font-outfit text-3xl font-black tracking-tight text-white leading-tight">
+          <h2 className="font-outfit text-3.5xl font-black tracking-tight text-black leading-none">
             Track Food.<br />
             Track Progress.<br />
             Transform Yourself.
           </h2>
-          <p className="text-xs text-[#A1A1AA] max-w-[240px] mx-auto font-semibold leading-relaxed">
+          <p className="text-xs text-[#8D8D92] max-w-[240px] mx-auto font-semibold leading-relaxed">
             AI-powered food tracking and nutrition coaching.
           </p>
         </div>
@@ -116,13 +113,13 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleLogin}
           disabled={busy || loading}
-          className="w-full py-4 rounded-[20px] bg-white hover:bg-slate-100 text-black font-extrabold text-xs shadow-md transition-all active:scale-[0.99] flex items-center justify-center space-x-3 border border-white"
+          className="w-full py-4 rounded-[20px] bg-black hover:bg-neutral-900 text-white font-extrabold text-xs shadow-md transition-all active:scale-[0.99] flex items-center justify-center space-x-3 border border-black"
         >
           {busy ? (
-            <div className="h-4.5 w-4.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <div className="h-4.5 w-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : (
             <>
-              <svg className="h-4.5 w-4.5 fill-current shrink-0" viewBox="0 0 24 24">
+              <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
@@ -133,11 +130,11 @@ export default function LoginPage() {
           )}
         </button>
 
-        {/* Minimal Legal Text with Purple Accent */}
+        {/* Minimal Legal Text with Black Accent */}
         <div className="text-center space-y-1.5">
-          <p className="text-[10px] text-[#52525B] font-semibold leading-relaxed">
+          <p className="text-[10px] text-[#8D8D92] font-semibold leading-relaxed">
             By signing in, you agree to our <br />
-            <span className="text-[#8B5CF6] hover:underline cursor-pointer">Terms of Service</span> & <span className="text-[#8B5CF6] hover:underline cursor-pointer">Privacy Policy</span>.
+            <span className="text-black font-extrabold hover:underline cursor-pointer">Terms of Service</span> & <span className="text-black font-extrabold hover:underline cursor-pointer">Privacy Policy</span>.
           </p>
         </div>
 

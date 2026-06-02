@@ -38,11 +38,8 @@ export default function SplashPage() {
   }, [progress, user, loading, router]);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-between bg-[#0A0A0A] p-8 text-white select-none relative overflow-hidden">
+    <div className="flex h-screen w-full flex-col items-center justify-between bg-white p-8 text-black select-none relative overflow-hidden">
       
-      {/* Background ambient purple spark */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[350px] w-[350px] rounded-full bg-[#8B5CF6]/5 blur-[80px] pointer-events-none -z-10" />
-
       <div /> {/* Top spacer */}
 
       {/* Center Logo Block */}
@@ -51,7 +48,7 @@ export default function SplashPage() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="flex h-20 w-20 items-center justify-center rounded-[24px] border border-white/[0.08] bg-[#161616] p-4 shadow-lg shadow-black/40"
+          className="flex h-20 w-20 items-center justify-center rounded-[28px] border border-slate-100 bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.015)]"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="ZenLog Logo" className="h-14 w-14 object-contain" />
@@ -61,26 +58,26 @@ export default function SplashPage() {
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="space-y-1"
+          className="space-y-1.5"
         >
-          <h1 className="font-outfit text-3xl font-black tracking-tight text-white uppercase">
+          <h1 className="font-outfit text-3xl font-black tracking-tight text-black uppercase">
             ZENLOG
           </h1>
-          <p className="text-[10px] font-bold tracking-widest text-[#A1A1AA] uppercase">
+          <p className="text-[10px] font-bold tracking-widest text-[#8D8D92] uppercase font-mono">
             Physique & Nutrition Intelligence
           </p>
         </motion.div>
       </div>
 
       {/* Bottom Loading Progress Bar */}
-      <div className="w-full max-w-[180px] space-y-2.5 flex flex-col items-center pb-6">
-        <div className="h-[3px] w-full bg-white/[0.08] rounded-full overflow-hidden">
+      <div className="w-full max-w-[180px] space-y-3 flex flex-col items-center pb-8">
+        <div className="h-[3px] w-full bg-slate-100 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#8B5CF6] transition-all duration-75"
+            className="h-full bg-black transition-all duration-75"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-[9px] font-mono tracking-widest text-[#52525B] uppercase animate-pulse">
+        <span className="text-[9px] font-mono tracking-widest text-[#8D8D92] uppercase animate-pulse">
           INITIALIZING... {progress}%
         </span>
       </div>
