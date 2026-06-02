@@ -30,7 +30,10 @@ export default function DashboardPage() {
     deleteMeal,
     logWater,
     isRolloverEnabled,
-    rolloverCalories
+    rolloverCalories,
+    weightLogs,
+    onboardingData,
+    logWeight
   } = useApp();
   const router = useRouter();
 
@@ -49,6 +52,10 @@ export default function DashboardPage() {
   const [showPortionDialog, setShowPortionDialog] = useState(false);
   const [selectedFoodForLog, setSelectedFoodForLog] = useState<any | null>(null);
   const [loggedServings, setLoggedServings] = useState("1");
+
+  // Weight Logging States
+  const [showWeightInput, setShowWeightInput] = useState(false);
+  const [newWeightVal, setNewWeightVal] = useState("");
 
   useEffect(() => {
     // Generate last 7 days calendar
@@ -125,10 +132,26 @@ export default function DashboardPage() {
   const carbsPercent = Math.min(100, Math.round((loggedCarbs / targetCarbs) * 100));
   const fatPercent = Math.min(100, Math.round((loggedFat / targetFat) * 100));
 
+  const latestWeight = weightLogs.length > 0 
+    ? weightLogs[weightLogs.length - 1].weight 
+    : (onboardingData?.currentWeight || 70);
+  
+  const targetWeight = onboardingData?.targetWeight || latestWeight;
+  const weightDifference = Math.round((latestWeight - targetWeight) * 10) / 10;
+
   const handleOpenPortion = (food: any) => {
     setSelectedFoodForLog(food);
     setLoggedServings("1");
     setShowPortionDialog(true);
+  };
+
+  const handleWeightSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(newWeightVal);
+    if (!isNaN(parsed) && parsed > 0) {
+      logWeight(parsed);
+      setShowWeightInput(false);
+    }
   };
 
   const handleConfirmLog = (e: React.FormEvent) => {
@@ -265,6 +288,104 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 3.5 WATER INTAKE & WEIGHT PROGRESS GRID */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Water Intake Card */}
+        <div className="bg-[#F4F4F5] rounded-[24px] p-5 border border-slate-100 flex flex-col justify-between space-y-4">
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Water Intake</span>
+              <Droplet className="h-4 w-4 text-blue-500 fill-blue-500" />
+            </div>
+            <div className="flex items-baseline space-x-1 mt-1">
+              <span className="text-2xl font-black text-black font-outfit" id="water-intake-value">{waterLogged}</span>
+              <span className="text-xs font-bold text-slate-400">/ {targets.waterTargetMl || 3000} ml</span>
+            </div>
+            {/* Water progress bar */}
+            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden mt-2">
+              <div 
+                className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round((waterLogged / (targets.waterTargetMl || 3000)) * 100))}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => logWater(250)}
+              id="btn-log-water-250"
+              className="flex-1 py-2 rounded-xl bg-white border border-slate-200 text-[10px] font-extrabold text-black active:scale-95 transition-all hover:bg-slate-50"
+            >
+              +250ml
+            </button>
+            <button
+              onClick={() => logWater(500)}
+              id="btn-log-water-500"
+              className="flex-1 py-2 rounded-xl bg-white border border-slate-200 text-[10px] font-extrabold text-black active:scale-95 transition-all hover:bg-slate-50"
+            >
+              +500ml
+            </button>
+          </div>
+        </div>
+
+        {/* Weight Progress Card */}
+        <div className="bg-[#F4F4F5] rounded-[24px] p-5 border border-slate-100 flex flex-col justify-between space-y-4">
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Weight Progress</span>
+              <Scale className="h-4 w-4 text-emerald-500" />
+            </div>
+            {showWeightInput ? (
+              <form onSubmit={handleWeightSubmit} className="flex items-center space-x-1.5 mt-1">
+                <input
+                  type="number"
+                  step="0.1"
+                  required
+                  id="input-new-weight"
+                  value={newWeightVal}
+                  onChange={(e) => setNewWeightVal(e.target.value)}
+                  className="w-16 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-black font-bold focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  id="btn-submit-weight"
+                  className="px-2 py-1 rounded-lg bg-black text-white text-[10px] font-black"
+                >
+                  OK
+                </button>
+              </form>
+            ) : (
+              <div 
+                className="flex items-baseline space-x-1 mt-1 cursor-pointer hover:opacity-85"
+                id="weight-value-container"
+                onClick={() => {
+                  setNewWeightVal(latestWeight.toString());
+                  setShowWeightInput(true);
+                }}
+              >
+                <span className="text-2xl font-black text-black font-outfit" id="weight-value">{latestWeight}</span>
+                <span className="text-xs font-bold text-slate-400">kg</span>
+              </div>
+            )}
+            
+            <div className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wider font-mono" id="weight-goal-msg">
+              Goal: {targetWeight} kg 
+              {weightDifference > 0 ? ` (${weightDifference} kg to lose)` : weightDifference < 0 ? ` (${Math.abs(weightDifference)} kg to gain)` : " (Goal Reached!)"}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setNewWeightVal(latestWeight.toString());
+              setShowWeightInput(true);
+            }}
+            id="btn-trigger-weight-input"
+            className="w-full py-2 rounded-xl bg-white border border-slate-200 text-[10px] font-extrabold text-black active:scale-95 transition-all hover:bg-slate-50"
+          >
+            Log Weight
+          </button>
         </div>
       </div>
 
