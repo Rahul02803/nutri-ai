@@ -45,66 +45,18 @@ export default function LoginPage() {
           <Text style={styles.subTitle}>LOG IN OR SIGN UP</Text>
         </View>
 
-        {/* Form Input Container (Action 1: Email continue - Primary Action) */}
+        {/* Large Premium Google Sign-In Button (Google Login Only) */}
         <View style={styles.formContainer}>
           {errorText && (
             <Text style={styles.errorText}>{errorText}</Text>
           )}
 
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.inputField}
-              placeholder="Email Address"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={(t) => { setEmail(t); setErrorText(null); }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.inputField}
-              placeholder="Password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setErrorText(null); }}
-              secureTextEntry
-            />
-          </View>
-
           <TouchableOpacity 
             style={styles.primaryButton} 
-            onPress={handleEmailLogin}
+            onPress={handleMockGoogleLogin}
             activeOpacity={0.9}
           >
-            <Text style={styles.primaryButtonText}>Continue with Email</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Social Oauth Buttons (Actions 2 & 3: Social logins) */}
-        <View style={styles.socialContainer}>
-          <View style={styles.separatorRow}>
-            <View style={styles.line} />
-            <Text style={styles.separatorText}>OR</Text>
-            <View style={styles.line} />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.socialButton} 
-            onPress={handleMockGoogleLogin}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.socialButtonText}>🌐 Continue with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.socialButton} 
-            onPress={handleMockAppleLogin}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.socialButtonText}> Continue with Apple</Text>
+            <Text style={styles.primaryButtonText}>🌐 Continue with Google</Text>
           </TouchableOpacity>
         </View>
 

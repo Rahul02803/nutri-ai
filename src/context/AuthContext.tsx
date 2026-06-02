@@ -115,12 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 displayName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
                 photoURL: firebaseUser.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(firebaseUser.uid)}`,
                 role: role,
-                isOnboarded: role === "admin", // Admin bypass onboarding
-                onboardingCompleted: role === "admin",
+                isOnboarded: false, // Strict removal of all admin/user backdoors
+                onboardingCompleted: false,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
               }), 4000);
-              isOnboarded = role === "admin";
+              isOnboarded = false;
             }
           } catch (firestoreError: any) {
             console.warn("Firestore sync failed or timed out. Falling back to local/auth profile.", firestoreError.message);
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
               } catch (e) {}
             } else {
-              isOnboarded = role === "admin";
+              isOnboarded = false; // Remove backdoor
             }
           }
 
