@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { INITIAL_FOODS } from "@/lib/foods";
+import { FoodItem } from "@/lib/foods";
+import { searchFoodsOfflineOnline } from "@/lib/foodSearchService";
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Gemini API key is not configured. Please supply an API key in .env or input it directly." },
+        { error: "Gemini API key is not configured. Please configure an API key in .env or input it directly." },
         { status: 400 }
       );
     }
@@ -21,22 +22,26 @@ export async function POST(req: Request) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, "");
 
-    // Strict prompt strictly forbidding calorie and macro estimation from AI
-    const promptText = `Analyze this image and identify food items.
-Return ONLY JSON.
-
+    // Prompt Gemini Vision strictly to detect foods and estimate weights in grams, but DO NOT generate macros/calories
+    const promptText = `Analyze this image and identify all visible food items.
+Return ONLY JSON matching this schema:
 {
-  "foods":[
+  "foods": [
     {
-      "name":"",
-      "confidence":0
+      "name": "Identified Food Name",
+      "estimated_weight_g": 150,
+      "confidence": 0.95
     }
   ]
 }
 
-Do not estimate calories.
-Do not estimate macros.
-Only identify visible foods.`;
+For each food item:
+1. Detect the specific food name (e.g. "Steamed Basmati Rice", "Paneer Butter Masala", "Jalebi", "Whole Wheat Roti / Chapati", "Dal Tadka").
+2. Estimate the portion weight in grams.
+3. Generate a confidence score between 0 and 1.
+4. DO NOT generate, calculate, or estimate calories, protein, carbs, fats, or other nutrients. You must strictly omit any nutritional calculations.
+
+Only return the JSON list of foods.`;
 
     const payload = {
       contents: [
@@ -53,7 +58,7 @@ Only identify visible foods.`;
         }
       ],
       generationConfig: {
-        maxOutputTokens: 250,
+        maxOutputTokens: 500,
         temperature: 0.1,
         responseMimeType: "application/json"
       }
@@ -88,43 +93,57 @@ Only identify visible foods.`;
         return NextResponse.json({ error: "No food items could be identified in this image." }, { status: 400 });
       }
 
-      // Step 4 & 5: Food database lookup & calculate calories and macros
-      const identified = foods[0]; // Primary identified food item
-      const identifiedName = (identified.name || "").trim().toLowerCase();
-      const confidence = parseFloat(identified.confidence) || 0;
+      // Concurrently query database for each identified food
+      const processedFoods = await Promise.all(foods.map(async (f: any) => {
+        const identifiedName = (f.name || "").trim();
+        const estimatedWeightG = parseFloat(f.estimated_weight_g) || 100;
+        const confidence = parseFloat(f.confidence) || 0.8;
 
-      // Smart database lookup check name and aliases
-      let matchedItem = INITIAL_FOODS.find((item) => {
-        const itemName = item.name.toLowerCase();
-        const aliasMatch = item.aliases?.some((alias) => identifiedName.includes(alias.toLowerCase()) || alias.toLowerCase().includes(identifiedName));
-        return itemName.includes(identifiedName) || identifiedName.includes(itemName) || aliasMatch;
-      });
+        // Perform unified database search
+        const dbMatches = await searchFoodsOfflineOnline(identifiedName);
+        let matchedItem: FoodItem;
 
-      // Default fallback if not found in database (e.g. estimate generic fallback)
-      if (!matchedItem) {
-        matchedItem = {
-          id: "generic-match",
-          name: identified.name || "Identified Meal",
-          servingSize: "1 serving (150g)",
-          calories: 280,
-          protein: 8,
-          carbs: 35,
-          fat: 10,
-          category: "Other"
+        if (dbMatches.length > 0) {
+          matchedItem = dbMatches[0];
+        } else {
+          // Fallback to generic item if not found
+          matchedItem = {
+            id: `generic-scan-${Math.floor(Math.random() * 10000)}`,
+            name: identifiedName,
+            servingSize: "100g",
+            calories: 150,
+            protein: 4.0,
+            carbs: 20.0,
+            fat: 5.0,
+            category: "Other"
+          };
+        }
+
+        // Parse serving weight from matched item servingSize
+        let servingWeightG = 100;
+        const weightMatch = matchedItem.servingSize.match(/(\d+)\s*(g|ml)/i);
+        if (weightMatch) {
+          servingWeightG = parseFloat(weightMatch[1]) || 100;
+        }
+
+        const scaleFactor = estimatedWeightG / servingWeightG;
+
+        return {
+          id: matchedItem.id,
+          name: matchedItem.name,
+          estimatedWeightG,
+          calories: Math.round(matchedItem.calories * scaleFactor),
+          protein: Math.round(matchedItem.protein * scaleFactor * 10) / 10,
+          carbs: Math.round(matchedItem.carbs * scaleFactor * 10) / 10,
+          fat: Math.round(matchedItem.fat * scaleFactor * 10) / 10,
+          servingSize: matchedItem.servingSize,
+          confidence
         };
-      }
+      }));
 
       return NextResponse.json({
         success: true,
-        data: {
-          foodName: matchedItem.name,
-          calories: matchedItem.calories,
-          protein: matchedItem.protein,
-          carbs: matchedItem.carbs,
-          fat: matchedItem.fat,
-          servingSize: matchedItem.servingSize,
-          confidence: confidence
-        }
+        foods: processedFoods
       });
 
     } catch (e) {
