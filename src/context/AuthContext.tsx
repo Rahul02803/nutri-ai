@@ -245,15 +245,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(SESSION_KEY);
   };
 
-  const updateUserOnboardStatus = async (status: boolean) => {
+  const updateUserOnboardStatus = async (status: boolean, updatedName?: string) => {
     if (!user) return;
-    const updated: User = { ...user, isOnboarded: status };
+    const updated: User = { ...user, isOnboarded: status, name: updatedName || user.name };
     setUser(updated);
     localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
 
     try {
       const userRef = doc(db, "users", user.id);
-      await setDoc(userRef, { isOnboarded: status }, { merge: true });
+      await setDoc(userRef, { 
+        isOnboarded: status,
+        displayName: updatedName || user.name
+      }, { merge: true });
     } catch (e) {
       console.error("Failed to save onboard status to firestore", e);
     }
