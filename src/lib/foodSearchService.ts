@@ -5,6 +5,89 @@
 
 import { INITIAL_FOODS, FoodItem } from "./foods";
 
+export interface CacheEntry {
+  timestamp: number;
+  data: FoodItem[];
+}
+
+export class FoodSearchCache {
+  private inMemoryCache = new Map<string, CacheEntry>();
+  private CACHE_KEY_PREFIX = "zenlog_search_cache_";
+  private MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  get(query: string): FoodItem[] | null {
+    const cleanQuery = query.toLowerCase().trim();
+    
+    // Check in-memory cache first
+    const memEntry = this.inMemoryCache.get(cleanQuery);
+    if (memEntry && (Date.now() - memEntry.timestamp < this.MAX_AGE_MS)) {
+      return memEntry.data;
+    }
+
+    // Check localStorage fallback
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`${this.CACHE_KEY_PREFIX}${cleanQuery}`);
+        if (stored) {
+          const entry: CacheEntry = JSON.parse(stored);
+          if (Date.now() - entry.timestamp < this.MAX_AGE_MS) {
+            // Populate in-memory cache
+            this.inMemoryCache.set(cleanQuery, entry);
+            return entry.data;
+          } else {
+            // Expired, clear it
+            localStorage.removeItem(`${this.CACHE_KEY_PREFIX}${cleanQuery}`);
+          }
+        }
+      } catch (e) {
+        console.error("Error reading search cache from localStorage", e);
+      }
+    }
+    return null;
+  }
+
+  set(query: string, data: FoodItem[]): void {
+    const cleanQuery = query.toLowerCase().trim();
+    const entry: CacheEntry = {
+      timestamp: Date.now(),
+      data
+    };
+
+    // Set in memory
+    this.inMemoryCache.set(cleanQuery, entry);
+
+    // Set in localStorage
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`${this.CACHE_KEY_PREFIX}${cleanQuery}`, JSON.stringify(entry));
+      } catch (e) {
+        console.error("Error saving search cache to localStorage", e);
+      }
+    }
+  }
+
+  clear(): void {
+    this.inMemoryCache.clear();
+    if (typeof window !== "undefined") {
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(this.CACHE_KEY_PREFIX)) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+      } catch (e) {
+        console.error("Error clearing search cache from localStorage", e);
+      }
+    }
+  }
+}
+
+export const foodSearchCache = new FoodSearchCache();
+
+
 // Synonym Mappings Dictionary
 const SYNONYM_GROUPS: { [key: string]: string[] } = {
   curd: ["dahi", "yogurt", "yoghourt", "curd", "masti dahi"],
@@ -82,6 +165,12 @@ export async function searchFoodsOfflineOnline(query: string): Promise<FoodItem[
   const cleanQuery = query.toLowerCase().trim();
   if (!cleanQuery) return [];
 
+  // 0. Check cache
+  const cachedResult = foodSearchCache.get(cleanQuery);
+  if (cachedResult) {
+    return cachedResult;
+  }
+
   // 1. Gather all catalogs (Preseeded + Custom User generated)
   const userFoods = getLocalUserFoods();
   const fullLocalCatalog = [...userFoods, ...INITIAL_FOODS];
@@ -153,81 +242,137 @@ export async function searchFoodsOfflineOnline(query: string): Promise<FoodItem[
     .sort((a, b) => b.score - a.score)
     .map((entry) => entry.food);
 
-  // 4. Try fetching from public USDA FDC API (Browser CORS-safe online search as fallback)
+  // 4. Try fetching from public USDA FDC API & Open Food Facts API concurrently
   let usdaMatches: FoodItem[] = [];
+  let offMatches: FoodItem[] = [];
+
   if (cleanQuery.length > 2) {
     const usdaApiKey = "DEMO_KEY";
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=8`;
+    const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=8`;
+    const offUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8`;
 
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" }
-      });
+      const [usdaRes, offRes] = await Promise.allSettled([
+        fetch(usdaUrl, { method: "GET", headers: { "Content-Type": "application/json" } }),
+        fetch(offUrl, { method: "GET", headers: { "Content-Type": "application/json" } })
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        const fdcFoods = data.foods || [];
+      if (usdaRes.status === "fulfilled" && usdaRes.value.ok) {
+        try {
+          const data = await usdaRes.value.json();
+          const fdcFoods = data.foods || [];
+          usdaMatches = fdcFoods.map((f: any, idx: number) => {
+            const nutrients = f.foodNutrients || [];
+            let servingText = "100g";
+            if (f.servingSize && f.servingSizeUnit) {
+              servingText = `${f.servingSize} ${f.servingSizeUnit.toLowerCase()}`;
+            } else if (f.householdServingFullText) {
+              servingText = f.householdServingFullText;
+            }
 
-        usdaMatches = fdcFoods.map((f: any, idx: number) => {
-          const nutrients = f.foodNutrients || [];
-          
-          let servingText = "100g";
-          if (f.servingSize && f.servingSizeUnit) {
-            servingText = `${f.servingSize} ${f.servingSizeUnit.toLowerCase()}`;
-          } else if (f.householdServingFullText) {
-            servingText = f.householdServingFullText;
-          }
+            const calories = Math.round(extractNutrient(nutrients, 1008, extractNutrient(nutrients, 208, 0)));
+            const protein = extractNutrient(nutrients, 1003, 0);
+            const carbs = extractNutrient(nutrients, 1005, 0);
+            const fat = extractNutrient(nutrients, 1004, 0);
+            const fiber = extractNutrient(nutrients, 1079, 0);
+            const sugar = extractNutrient(nutrients, 269, 0);
+            const sodium = Math.round(extractNutrient(nutrients, 1093, 0));
+            const potassium = Math.round(extractNutrient(nutrients, 1092, 0));
+            const cholesterol = Math.round(extractNutrient(nutrients, 1253, 0));
+            const calcium = Math.round(extractNutrient(nutrients, 1087, 0));
+            const iron = extractNutrient(nutrients, 1089, 0);
 
-          const calories = Math.round(extractNutrient(nutrients, 1008, extractNutrient(nutrients, 208, 0)));
-          const protein = extractNutrient(nutrients, 1003, 0);
-          const carbs = extractNutrient(nutrients, 1005, 0);
-          const fat = extractNutrient(nutrients, 1004, 0);
-          const fiber = extractNutrient(nutrients, 1079, 0);
-          const sugar = extractNutrient(nutrients, 269, 0);
-          const sodium = Math.round(extractNutrient(nutrients, 1093, 0));
-          const potassium = Math.round(extractNutrient(nutrients, 1092, 0));
-          const cholesterol = Math.round(extractNutrient(nutrients, 1253, 0));
-          const calcium = Math.round(extractNutrient(nutrients, 1087, 0));
-          const iron = extractNutrient(nutrients, 1089, 0);
+            return {
+              id: `usda-${f.fdcId || idx}-${Math.floor(Math.random() * 1000)}`,
+              name: `${f.description}${f.brandOwner ? ` (${f.brandOwner})` : ""}`,
+              servingSize: servingText,
+              calories,
+              protein,
+              carbs,
+              fat,
+              category: "Other" as const,
+              fiber,
+              sugar,
+              sodium,
+              potassium,
+              cholesterol,
+              calcium,
+              iron,
+              brand: f.brandOwner || undefined,
+              country: "US",
+              popularityScore: 50,
+              verificationStatus: "Verified"
+            };
+          });
+        } catch (e) {
+          console.warn("Failed to parse USDA FDC response:", e);
+        }
+      }
 
-          return {
-            id: `usda-${f.fdcId || idx}-${Math.floor(Math.random() * 1000)}`,
-            name: `${f.description}${f.brandOwner ? ` (${f.brandOwner})` : ""}`,
-            servingSize: servingText,
-            calories,
-            protein,
-            carbs,
-            fat,
-            category: "Other" as const,
-            fiber,
-            sugar,
-            sodium,
-            potassium,
-            cholesterol,
-            calcium,
-            iron,
-            brand: f.brandOwner || undefined,
-            country: "US",
-            popularityScore: 50,
-            verificationStatus: "Verified"
-          };
-        });
+      if (offRes.status === "fulfilled" && offRes.value.ok) {
+        try {
+          const data = await offRes.value.json();
+          const products = data.products || [];
+          offMatches = products.map((p: any, idx: number) => {
+            const nut = p.nutriments || {};
+            const calories = Math.round(nut["energy-kcal_100g"] || nut["energy-kcal"] || 0);
+            const protein = Math.round((nut["proteins_100g"] || nut["proteins"] || 0) * 10) / 10;
+            const carbs = Math.round((nut["carbohydrates_100g"] || nut["carbohydrates"] || 0) * 10) / 10;
+            const fat = Math.round((nut["fat_100g"] || nut["fat"] || 0) * 10) / 10;
+            const fiber = Math.round((nut["fiber_100g"] || 0) * 10) / 10;
+            const sugar = Math.round((nut["sugars_100g"] || 0) * 10) / 10;
+            const sodiumGrams = nut["sodium_100g"] || nut["sodium"] || 0;
+            const sodium = Math.round(sodiumGrams * 1000);
+            const servingText = p.serving_size || "100g";
+
+            return {
+              id: `off-text-${p.code || idx}-${Math.floor(Math.random() * 1000)}`,
+              name: `${p.product_name || "Packaged Product"}${p.brands ? ` (${p.brands})` : ""}`,
+              servingSize: servingText,
+              calories,
+              protein,
+              carbs,
+              fat,
+              category: "Other" as const,
+              fiber,
+              sugar,
+              sodium,
+              brand: p.brands || undefined,
+              barcode: p.code || undefined,
+              country: "Global",
+              popularityScore: 60,
+              verificationStatus: "Verified"
+            };
+          });
+        } catch (e) {
+          console.warn("Failed to parse Open Food Facts response:", e);
+        }
       }
     } catch (e) {
-      console.warn("Direct USDA search failed (offline or CORS rate-limit), fallback active...", e);
+      console.warn("External concurrency search fetch failed:", e);
     }
   }
 
-  // Merge local matches and USDA matches
+  // Merge local matches and USDA/OFF matches
   const combined = [...sortedLocalMatches];
-  usdaMatches.forEach((uf) => {
-    if (!combined.some((lf) => lf.name.toLowerCase() === uf.name.toLowerCase())) {
-      combined.push(uf);
-    }
-  });
+  
+  const addIfUnique = (matches: FoodItem[]) => {
+    matches.forEach((uf) => {
+      if (!combined.some((lf) => lf.name.toLowerCase() === uf.name.toLowerCase())) {
+        combined.push(uf);
+      }
+    });
+  };
 
-  return combined.slice(0, 15);
+  addIfUnique(usdaMatches);
+  addIfUnique(offMatches);
+
+  const results = combined.slice(0, 15);
+
+  // Cache final merged results
+  foodSearchCache.set(cleanQuery, results);
+
+  return results;
 }
 
 // Helper to extract nutrients from USDA FDC API response

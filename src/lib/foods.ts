@@ -1704,5 +1704,37 @@ export const INITIAL_FOODS: FoodItem[] = [
     aliases: ["chow mein", "hakka noodles", "chinese noodles"],
     popularityScore: 94,
     verificationStatus: "Verified"
+  },
+  {
+    id: "gl-tofu",
+    name: "Organic Firm Tofu",
+    servingSize: "100g",
+    calories: 80,
+    protein: 8.0,
+    carbs: 2.0,
+    fat: 5.0,
+    category: "Other",
+    fiber: 1.0,
+    sodium: 12,
+    country: "Global",
+    aliases: ["tofu", "soya paneer", "soy curd", "bean curd"],
+    popularityScore: 90,
+    verificationStatus: "Verified"
+  },
+  {
+    id: "gl-oats",
+    name: "Rolled Oats",
+    servingSize: "1 bowl (40g)",
+    calories: 150,
+    protein: 5.0,
+    carbs: 27.0,
+    fat: 3.0,
+    category: "Breakfast",
+    fiber: 4.0,
+    sodium: 2,
+    country: "Global",
+    aliases: ["oats", "oatmeal", "rolled oats", "porridge oats"],
+    popularityScore: 95,
+    verificationStatus: "Verified"
   }
 ];
