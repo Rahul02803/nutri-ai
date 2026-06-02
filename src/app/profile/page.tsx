@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
 import { User, Mail, Phone, Scale, Award, Heart, Shield, LogOut, Edit2, Check, X } from "lucide-react";
 import { OnboardingData } from "@/lib/calculations";
+import { AnimatePresence } from "framer-motion";
 
 export default function ProfilePage() {
   const { user, logout, updateUserOnboardStatus } = useAuth();

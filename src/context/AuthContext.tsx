@@ -21,7 +21,7 @@ interface AuthContextType {
   loading: boolean;
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  updateUserOnboardStatus: (status: boolean) => void;
+  updateUserOnboardStatus: (status: boolean, updatedName?: string) => Promise<void>;
 }
 
 const SESSION_KEY = "zenlog_session_v3";
