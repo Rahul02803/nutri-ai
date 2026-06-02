@@ -389,6 +389,25 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* 3.8 AI COACH CONSULTATION CARD */}
+      <div 
+        onClick={() => router.push("/chatbot")}
+        className="bg-[#F4F4F5] hover:bg-[#EAEAEB] rounded-[24px] p-5 border border-slate-100 flex items-center justify-between space-x-4 cursor-pointer active:scale-[0.99] transition-all"
+        id="btn-consult-ai-coach"
+      >
+        <div className="flex items-center space-x-3.5 text-left">
+          <div className="h-10 w-10 rounded-xl bg-black flex items-center justify-center shrink-0">
+            <Sparkles className="h-5 w-5 text-white" />
+          </div>
+          <div className="space-y-0.5">
+            <h4 className="font-extrabold text-black text-sm">ZenLog AI Coach</h4>
+            <p className="text-[10px] text-slate-400 font-bold leading-normal">
+              Calorie/protein recommendations, meal suggestions, and custom weight loss advice.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* 4. MANDATORY MANUAL FOOD SEARCH (Embedded search bar) */}
       <div className="space-y-3 pt-2">
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-mono">

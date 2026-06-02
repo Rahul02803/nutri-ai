@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { prompt, userContext } = await req.json();
-    const apiKey = process.env.GEMINI_API_KEY;
+    const { prompt, userContext, clientApiKey } = await req.json();
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
 
     // Gather metrics safely from context
     const name = userContext?.name || "User";
@@ -77,7 +77,7 @@ Since you've logged ${loggedCalories} kcal today, adding a couple of Egg Whites 
 • To maintain hard-earned muscle during a deficit, ensure you hit your daily protein goal of ${targetProtein}g and stay highly hydrated!`;
     }
     else if (query.includes("workout") || query.includes("routine") || query.includes("exercise") || query.includes("split")) {
-      reply = `Here is a highly effective, time-efficient 3-Day Full-Body Split perfect for your goals:
+      reply = `Here is a highly effective, time-efficient 3-Day Full-Body Split perfect for your goals, ${name}:
 
 • Monday (Strength): Squats (3x10), Bench Press (3x10), Lat Pulldowns (3x12), Core Planks (3x45s)
 • Wednesday (Hypertrophy): Romanian Deadlifts (3x10), Overhead Shoulder Press (3x12), Incline Dumbbell Rows (3x10), Bicep/Tricep superset (3x12)
