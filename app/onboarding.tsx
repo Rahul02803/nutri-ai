@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { useStore, UserProfile } from "../../store/useStore";
+import { useStore, UserProfile } from "../store/useStore";
 
 export default function OnboardingPage() {
   const router = useRouter();
