@@ -23,6 +23,8 @@ create table if not exists public.users (
   target_protein integer default 140,
   target_carbs integer default 210,
   target_fat integer default 65,
+  profile_picture text,
+  last_login timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -248,3 +250,33 @@ create table if not exists public.weekly_adjustments (
 
 alter table public.weekly_adjustments enable row level security;
 create policy "Users own weekly adjustments" on public.weekly_adjustments for all using (auth.uid() = user_id);
+
+-- ====================================================
+-- AUTOMATIC PROFILE SYNC ON GOOGLE SIGN-UP
+-- ====================================================
+
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (id, email, name, profile_picture, last_login)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    new.raw_user_meta_data->>'avatar_url',
+    now()
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    name = coalesce(excluded.name, public.users.name),
+    profile_picture = coalesce(excluded.profile_picture, public.users.profile_picture),
+    last_login = now();
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Setup trigger on auth.users for new signups
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();

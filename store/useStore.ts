@@ -184,7 +184,8 @@ interface ZenlogState {
   weeklyAdjustments: WeeklyAdjustment[];
 
   // Actions
-  login: (email: string, name?: string) => void;
+  setUser: (user: UserProfile | null) => void;
+  login: (user: UserProfile) => void;
   logout: () => void;
   saveOnboarding: (profile: Partial<UserProfile>) => void;
   logMeal: (meal: Omit<Meal, "id" | "user_id" | "created_at">, foods?: Omit<FoodItem, "id" | "meal_id">[]) => void;
@@ -678,29 +679,30 @@ export const useStore = create<ZenlogState>()(
   dailyInsights: [],
   weeklyAdjustments: [],
 
-  login: (email, name) => set((state) => ({
-    user: {
-      id: "usr_" + Math.random().toString(36).substr(2, 9),
-      email,
-      name: name || email.split("@")[0]
-    }
-  })),
+  setUser: (user) => set({ user }),
 
-  logout: () => set({
-    user: null,
-    meals: [],
-    weightLogs: [],
-    predictions: [],
-    corrections: [],
-    chatHistory: [
-      { role: "model", text: "Hey! I am your ZenLog AI Coach. What should we tackle today? Post-workout splits or protein guidelines? 🥑", timestamp: new Date().toISOString() }
-    ],
-    subscriptionPlan: "free",
-    scanCountToday: 0,
-    recentFoods: [],
-    hydrationLogs: [],
-    sleepLogs: []
-  }),
+  login: (user) => set({ user }),
+
+  logout: () => {
+    const { supabase } = require("../services/supabase");
+    supabase.auth.signOut().catch(console.error);
+
+    set({
+      user: null,
+      meals: [],
+      weightLogs: [],
+      predictions: [],
+      corrections: [],
+      chatHistory: [
+        { role: "model", text: "Hey! I am your ZenLog AI Coach. What should we tackle today? Post-workout splits or protein guidelines? 🥑", timestamp: new Date().toISOString() }
+      ],
+      subscriptionPlan: "free",
+      scanCountToday: 0,
+      recentFoods: [],
+      hydrationLogs: [],
+      sleepLogs: []
+    });
+  },
 
   saveOnboarding: (profile) => set((state) => {
     if (!state.user) return {};
