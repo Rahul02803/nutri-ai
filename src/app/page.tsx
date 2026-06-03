@@ -50,7 +50,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm font-medium text-[#8e8e93] hover:text-white transition-colors">Features</a>
             <a href="#faq" className="text-sm font-medium text-[#8e8e93] hover:text-white transition-colors">FAQ</a>
-            <a href="https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk" className="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white/90 transition-all transform active:scale-95">
+            <a href="/ZenLog.apk" download="ZenLog.apk" className="bg-white text-black text-xs font-bold px-4 py-2 rounded-full hover:bg-white/90 transition-all transform active:scale-95">
               Download APK
             </a>
           </div>
@@ -73,7 +73,7 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 mb-16">
-            <a href="https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk" className="flex flex-col items-center justify-center bg-white text-black px-10 py-3.5 rounded-full font-extrabold text-sm hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
+            <a href="/ZenLog.apk" download="ZenLog.apk" className="flex flex-col items-center justify-center bg-white text-black px-10 py-3.5 rounded-full font-extrabold text-sm hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_10px_30px_rgba(255,255,255,0.1)]">
               <span>Download Premium APK</span>
               <span className="text-[9px] opacity-60 font-semibold mt-0.5">v1.2.0 • 71.4 MB</span>
             </a>
@@ -189,7 +189,7 @@ export default function LandingPage() {
         <div className="max-w-xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4 tracking-tight">Ready to transform your health?</h2>
           <p className="text-[#8e8e93] text-sm md:text-base mb-8">Download ZenLog Premium today and experience tracking with zero limits.</p>
-          <a href="https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk" className="flex flex-col items-center justify-center bg-white text-black px-10 py-3.5 rounded-full font-extrabold text-sm hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <a href="/ZenLog.apk" download="ZenLog.apk" className="flex flex-col items-center justify-center bg-white text-black px-10 py-3.5 rounded-full font-extrabold text-sm hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all">
             <span>Download Premium APK</span>
             <span className="text-[9px] opacity-60 font-semibold mt-0.5">Free Download</span>
           </a>
