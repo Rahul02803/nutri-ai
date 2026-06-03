@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
 import { Camera, Image as ImageIcon, Check, Play, Edit3, X, Sparkles, Key, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { searchFoodsOfflineOnline, visualMealPhotoScan } from "@/lib/foodSearchService";
 
 export interface ScannedFoodItem {
   id: string;
@@ -112,49 +113,178 @@ export default function ScannerPage() {
     fileInputRef.current?.click();
   };
 
+  const callGeminiScanDirectly = async (base64Str: string, fileType: string): Promise<ScannedFoodItem[]> => {
+    const apiKey = clientApiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+    
+    if (!apiKey) {
+      throw new Error("Missing Gemini API Key configuration. Please configure a client API key in the Key settings panel.");
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const cleanBase64 = base64Str.replace(/^data:image\/\w+;base64,/, "");
+
+    const promptText = `Analyze this image and identify all visible food items.
+Return ONLY JSON matching this schema:
+{
+  "foods": [
+    {
+      "name": "Identified Food Name",
+      "estimated_weight_g": 150,
+      "confidence": 0.95
+    }
+  ]
+}
+
+For each food item:
+1. Detect the specific food name (e.g. "Steamed Basmati Rice", "Paneer Butter Masala", "Jalebi", "Whole Wheat Roti / Chapati", "Dal Tadka").
+2. Estimate the portion weight in grams.
+3. Generate a confidence score between 0 and 1.
+4. DO NOT generate, calculate, or estimate calories, protein, carbs, fats, or other nutrients. You must strictly omit any nutritional calculations.
+
+Only return the JSON list of foods.`;
+
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType: fileType || "image/jpeg",
+                data: cleanBase64
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: 500,
+        temperature: 0.1,
+        responseMimeType: "application/json"
+      }
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API responded with error: ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    const replyText = responseData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!replyText) {
+      throw new Error("Failed to receive food parsing from Gemini.");
+    }
+
+    const parsedData = JSON.parse(replyText.trim());
+    const foods = parsedData.foods || [];
+
+    if (foods.length === 0) {
+      throw new Error("No food items could be identified in this image.");
+    }
+
+    const processedFoods = await Promise.all(foods.map(async (f: any) => {
+      const identifiedName = (f.name || "").trim();
+      const estimatedWeightG = parseFloat(f.estimated_weight_g) || 100;
+      const confidence = parseFloat(f.confidence) || 0.8;
+
+      const dbMatches = await searchFoodsOfflineOnline(identifiedName);
+      let matchedItem;
+
+      if (dbMatches.length > 0) {
+        matchedItem = dbMatches[0];
+      } else {
+        matchedItem = {
+          id: `generic-scan-${Math.floor(Math.random() * 10000)}`,
+          name: identifiedName,
+          servingSize: "100g",
+          calories: 150,
+          protein: 4.0,
+          carbs: 20.0,
+          fat: 5.0,
+          category: "Other"
+        };
+      }
+
+      let servingWeightG = 100;
+      const weightMatch = matchedItem.servingSize.match(/(\d+)\s*(g|ml)/i);
+      if (weightMatch) {
+        servingWeightG = parseFloat(weightMatch[1]) || 100;
+      }
+
+      const scaleFactor = estimatedWeightG / servingWeightG;
+
+      return {
+        id: matchedItem.id,
+        name: matchedItem.name,
+        estimatedWeightG,
+        calories: Math.round(matchedItem.calories * scaleFactor),
+        protein: Math.round(matchedItem.protein * scaleFactor * 10) / 10,
+        carbs: Math.round(matchedItem.carbs * scaleFactor * 10) / 10,
+        fat: Math.round(matchedItem.fat * scaleFactor * 10) / 10,
+        servingSize: matchedItem.servingSize,
+        confidence,
+        servings: 1,
+        baseCalories: Math.round(matchedItem.calories * scaleFactor),
+        baseProtein: Math.round(matchedItem.protein * scaleFactor * 10) / 10,
+        baseCarbs: Math.round(matchedItem.carbs * scaleFactor * 10) / 10,
+        baseFat: Math.round(matchedItem.fat * scaleFactor * 10) / 10
+      };
+    }));
+
+    return processedFoods;
+  };
+
   const performGeminiScan = async (base64Str: string, fileType: string) => {
     try {
-      const response = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageBase64: base64Str,
-          mimeType: fileType,
-          clientApiKey: clientApiKey || undefined
-        })
-      });
+      const processedFoods = await callGeminiScanDirectly(base64Str, fileType);
+      setScannedFoods(processedFoods);
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error || "Failed to scan image.");
-      }
-
-      if (resData.success && resData.foods) {
-        const list = resData.foods.map((f: any) => ({
-          ...f,
+      const totalConf = processedFoods.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0);
+      const avgConf = processedFoods.length > 0 ? (totalConf / processedFoods.length) : 0.8;
+      setConfidence(avgConf);
+      setLowConfidenceWarning(avgConf < 0.70);
+      setScanState("results");
+    } catch (e: any) {
+      console.warn("[ZenLog Vision] Gemini API failed, running offline fallback visual scanner:", e.message);
+      try {
+        const fallbackRes = await visualMealPhotoScan(base64Str, "food_photo.jpg");
+        const list = fallbackRes.foods.map((f: any, idx: number) => ({
+          id: f.id || `fallback-scan-${idx}-${Math.floor(Math.random() * 1000)}`,
+          name: f.name,
+          estimatedWeightG: f.quantity_grams || 100,
+          calories: Math.round(f.calories * (f.quantity_grams || 100)),
+          protein: Math.round(f.protein * (f.quantity_grams || 100) * 10) / 10,
+          carbs: Math.round(f.carbs * (f.quantity_grams || 100) * 10) / 10,
+          fat: Math.round(f.fat * (f.quantity_grams || 100) * 10) / 10,
+          servingSize: "100g",
+          confidence: (fallbackRes.confidence / 100) || 0.8,
           servings: 1,
-          baseCalories: f.calories,
-          baseProtein: f.protein,
-          baseCarbs: f.carbs,
-          baseFat: f.fat
+          baseCalories: Math.round(f.calories * (f.quantity_grams || 100)),
+          baseProtein: Math.round(f.protein * (f.quantity_grams || 100) * 10) / 10,
+          baseCarbs: Math.round(f.carbs * (f.quantity_grams || 100) * 10) / 10,
+          baseFat: Math.round(f.fat * (f.quantity_grams || 100) * 10) / 10
         }));
         setScannedFoods(list);
-
-        // Compute average confidence
-        const totalConf = list.reduce((sum: number, f: any) => sum + (f.confidence || 0.8), 0);
-        const avgConf = list.length > 0 ? (totalConf / list.length) : 0.8;
-        setConfidence(avgConf);
-        setLowConfidenceWarning(avgConf < 0.70);
+        setConfidence(fallbackRes.confidence / 100);
+        setLowConfidenceWarning((fallbackRes.confidence / 100) < 0.70);
         setScanState("results");
-      } else {
-        throw new Error("Unable to parse food nutrition details from image.");
+      } catch (fallbackErr: any) {
+        setErrorText(e?.message || "Visual scanning failed. Make sure your Gemini API key is correct.");
+        setScanState("viewport");
       }
-
-    } catch (e: any) {
-      console.error(e);
-      setErrorText(e?.message || "Visual scanning error. Make sure your Gemini API key is correct.");
-      setScanState("viewport");
     }
   };
 

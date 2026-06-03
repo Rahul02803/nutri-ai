@@ -13,6 +13,15 @@ interface Message {
   timestamp: Date;
 }
 
+interface StructuredResponse {
+  summary: string;
+  caloriesRecommendation: number;
+  proteinRecommendation: number;
+  advice: string[];
+  warnings: string[];
+  nextSteps: string[];
+}
+
 export default function ChatbotPage() {
   const { user } = useAuth();
   const { meals, weightLogs, targets, onboardingData } = useApp();
@@ -38,7 +47,6 @@ export default function ChatbotPage() {
     .filter((m) => m.loggedDate === new Date().toISOString().split("T")[0])
     .reduce((sum, m) => sum + (m.protein * m.servings), 0);
 
-  // Auto-scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -47,7 +55,7 @@ export default function ChatbotPage() {
     scrollToBottom();
   }, [messages, loading]);
 
-  // Handle Offline state detection
+  // Offline detection
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsOffline(!navigator.onLine);
@@ -62,10 +70,10 @@ export default function ChatbotPage() {
     }
   }, []);
 
-  // Load cached chat messages on mount (Step 16)
+  // Load cached chat history
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("zenlog_coach_chat_history_v2");
+      const cached = localStorage.getItem("zenlog_coach_chat_history_v3");
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -81,10 +89,10 @@ export default function ChatbotPage() {
     }
   }, []);
 
-  // Save chat messages to cache whenever they change
+  // Save chat history
   useEffect(() => {
     if (messages.length > 0 && typeof window !== "undefined") {
-      localStorage.setItem("zenlog_coach_chat_history_v2", JSON.stringify(messages));
+      localStorage.setItem("zenlog_coach_chat_history_v3", JSON.stringify(messages));
     }
   }, [messages]);
 
@@ -95,61 +103,206 @@ export default function ChatbotPage() {
     }
   }, [user]);
 
+  /**
+   * Helper to generate a local fallback response
+   */
+  const getLocalFallback = (context: any, reason: string): StructuredResponse => {
+    console.warn(`[ZenZi Local Fallback] Triggered: ${reason}`);
+    
+    const name = context.name || "ZenLog Member";
+    const goal = context.goal?.toLowerCase() || "maintain";
+    const targetCalories = context.targetCalories || 2000;
+    const targetProtein = context.targetProtein || 140;
+
+    let summary = `Hi ${name}, I am generating your daily report using my local backup engine. We are currently focusing on your ${goal.toUpperCase()} phase.`;
+    
+    let advice = [
+      "Prioritize high-fiber Indian meals like dal, roasted chana, and vegetables to keep satiety levels high.",
+      "Stay hydrated by consuming at least 3-4 liters of water throughout the day.",
+      "Ensure you hit 7-8 hours of sleep to keep cortisol levels low and aid recovery."
+    ];
+    
+    let warnings = [];
+    if (loggedCalories > targetCalories + 200) {
+      warnings.push("You have exceeded your target calorie budget for today. Focus on light activity like walking to balance it.");
+    }
+    if (loggedCalories > 0 && loggedProtein < (targetProtein * 0.5)) {
+      warnings.push("Your protein intake today is currently low relative to your calories. Aim to incorporate high-protein snacks.");
+    }
+
+    let nextSteps = [
+      `Aim to eat a high-protein dinner containing paneer, tofu, lentils, or egg whites to meet your remaining target.`,
+      `Track your weight again tomorrow morning to keep the auto-calibration engine updated.`
+    ];
+
+    return {
+      summary,
+      caloriesRecommendation: targetCalories,
+      proteinRecommendation: targetProtein,
+      advice,
+      warnings: warnings.length > 0 ? warnings : ["No major warnings today. Keep maintaining your routine!"],
+      nextSteps
+    };
+  };
+
+  /**
+   * Directly queries the Gemini API client-side to bypass static Next.js export constraints
+   */
+  const callGeminiDirectly = async (promptText: string, context: any): Promise<StructuredResponse> => {
+    const clientApiKey = typeof window !== "undefined" 
+      ? localStorage.getItem("zenlog_client_gemini_api_key") 
+      : null;
+
+    // NEXT_PUBLIC_ variables can be compiled directly in the bundle
+    const apiKey = clientApiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+    
+    if (!apiKey) {
+      throw new Error("Missing API Key configuration. Using offline fallback.");
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const systemPrompt = `You are ZenZi, an elite AI nutrition and fitness coach.
+You analyze the user's logs and goals to provide structured advice.
+User Context:
+- Name: ${context.name}
+- Current Weight: ${context.currentWeight} kg (Target: ${context.targetWeight} kg)
+- Goal: ${context.goal.toUpperCase()}
+- Calorie Budget: ${context.targetCalories} kcal (Consumed: ${context.loggedCalories} kcal)
+- Protein Goal: ${context.targetProtein}g (Consumed: ${context.loggedProtein}g)
+- Diet Preference: ${context.dietPreference}
+- Activity Level: ${context.activityLevel}
+
+You MUST return a response that is strictly valid JSON matching this exact structure:
+{
+  "summary": "Concise summary of progress and status.",
+  "caloriesRecommendation": ${context.targetCalories},
+  "proteinRecommendation": ${context.targetProtein},
+  "advice": ["Advice 1", "Advice 2", "Advice 3"],
+  "warnings": ["Warning 1 if any, otherwise positive note"],
+  "nextSteps": ["Next step 1", "Next step 2"]
+}
+
+Do NOT use markdown backticks like \`\`\`json or \`\`\`. Return ONLY raw JSON.`;
+
+    const payload = {
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${systemPrompt}\n\nUser Message/Request: ${promptText}` }]
+        }
+      ],
+      generationConfig: {
+        maxOutputTokens: 600,
+        temperature: 0.2,
+        responseMimeType: "application/json"
+      }
+    };
+
+    // Safe fetch with 6s timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Google API returned status ${response.status}`);
+    }
+
+    const resData = await response.json();
+    const replyText = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!replyText) {
+      throw new Error("Empty candidates returned from Gemini.");
+    }
+
+    return JSON.parse(replyText.trim());
+  };
+
   const triggerInitialAssessment = async () => {
     if (!user) return;
     setLoading(true);
     setApiError(null);
 
+    const userContext = {
+      name: user.name || "ZenLog Member",
+      currentWeight: currentWeight,
+      targetWeight: onboardingData?.targetWeight || currentWeight,
+      goal: onboardingData?.goal || "maintain",
+      targetCalories: targets?.targetCalories || 2000,
+      loggedCalories: loggedCalories,
+      targetProtein: targets?.targetProtein || 140,
+      loggedProtein: loggedProtein,
+      activityLevel: onboardingData?.activityLevel || "moderate",
+      dietPreference: onboardingData?.dietPreference || "vegetarian"
+    };
+
     const assessmentPrompt = "Please analyze my user profile, food logs, and weight progress, and output: 1. Calorie Recommendations, 2. Protein Recommendations, 3. Meal Suggestions, and 4. Weight Loss / Fitness Advice. Keep it concise and format under 150 words.";
 
     try {
-      const userContext = {
-        name: user.name || "ZenLog Member",
-        currentWeight: currentWeight,
-        targetWeight: onboardingData?.targetWeight || currentWeight,
-        goal: onboardingData?.goal || "maintain",
-        targetCalories: targets?.targetCalories || 2000,
-        loggedCalories: loggedCalories,
-        targetProtein: targets?.targetProtein || 140,
-        loggedProtein: loggedProtein,
-        activityLevel: onboardingData?.activityLevel || "moderate",
-        dietPreference: onboardingData?.dietPreference || "vegetarian",
-        weightProgress: weightLogs,
-        foodLogs: meals
-      };
-
-      const clientApiKey = typeof window !== "undefined" 
-        ? localStorage.getItem("zenlog_client_gemini_api_key") 
-        : null;
-
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: assessmentPrompt,
-          userContext,
-          clientApiKey: clientApiKey || undefined
-        })
-      });
-
-      const resData = await response.json();
+      const result = await callGeminiDirectly(assessmentPrompt, userContext);
       
-      if (!response.ok) {
-        throw new Error(resData.error || "Failed to load assessment.");
-      }
+      const formattedReply = `🤖 **ZenZi Coach Insights**
 
-      if (resData.reply) {
-        setMessages([
-          {
-            role: "model",
-            text: resData.reply,
-            timestamp: new Date()
-          }
-        ]);
-      }
+${result.summary}
+
+**Daily Targets:**
+• Calorie Recommendation: **${result.caloriesRecommendation} kcal** (Logged: ${loggedCalories} kcal)
+• Protein Recommendation: **${result.proteinRecommendation}g** (Logged: ${loggedProtein}g)
+
+**Advice:**
+${result.advice.map((item) => `• ${item}`).join("\n")}
+
+**Warnings:**
+${result.warnings.map((item) => `⚠️ ${item}`).join("\n")}
+
+**Next Steps:**
+${result.nextSteps.map((item) => `👉 ${item}`).join("\n")}`;
+
+      setMessages([
+        {
+          role: "model",
+          text: formattedReply,
+          timestamp: new Date()
+        }
+      ]);
     } catch (e: any) {
-      console.error("[ZenZi Chatbot Client Error]:", e);
-      setApiError("Failed to trigger AI analysis. Tap retry below.");
+      console.warn("[ZenZi Client] Falling back to local coach simulation:", e.message);
+      
+      // Fallback
+      const fallback = getLocalFallback(userContext, e.message);
+      
+      const formattedReply = `🤖 **ZenZi Local Advisor** (Fallback Engine Active)
+
+${fallback.summary}
+
+**Daily Targets:**
+• Calorie Recommendation: **${fallback.caloriesRecommendation} kcal** (Logged: ${loggedCalories} kcal)
+• Protein Recommendation: **${fallback.proteinRecommendation}g** (Logged: ${loggedProtein}g)
+
+**Advice:**
+${fallback.advice.map((item) => `• ${item}`).join("\n")}
+
+**Warnings:**
+${fallback.warnings.map((item) => `⚠️ ${item}`).join("\n")}
+
+**Next Steps:**
+${fallback.nextSteps.map((item) => `👉 ${item}`).join("\n")}`;
+
+      setMessages([
+        {
+          role: "model",
+          text: formattedReply,
+          timestamp: new Date()
+        }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -163,7 +316,6 @@ export default function ChatbotPage() {
     setInputVal("");
     setApiError(null);
 
-    // Append user message
     const updatedMessages = [
       ...messages,
       { role: "user" as const, text: userText, timestamp: new Date() }
@@ -171,55 +323,76 @@ export default function ChatbotPage() {
     setMessages(updatedMessages);
     setLoading(true);
 
+    const userContext = {
+      name: user.name || "ZenLog Member",
+      currentWeight: currentWeight,
+      targetWeight: onboardingData?.targetWeight || currentWeight,
+      goal: onboardingData?.goal || "maintain",
+      targetCalories: targets?.targetCalories || 2000,
+      loggedCalories: loggedCalories,
+      targetProtein: targets?.targetProtein || 140,
+      loggedProtein: loggedProtein,
+      activityLevel: onboardingData?.activityLevel || "moderate",
+      dietPreference: onboardingData?.dietPreference || "vegetarian"
+    };
+
     try {
-      const userContext = {
-        name: user.name || "ZenLog Member",
-        currentWeight: currentWeight,
-        targetWeight: onboardingData?.targetWeight || currentWeight,
-        goal: onboardingData?.goal || "maintain",
-        targetCalories: targets?.targetCalories || 2000,
-        loggedCalories: loggedCalories,
-        targetProtein: targets?.targetProtein || 140,
-        loggedProtein: loggedProtein,
-        activityLevel: onboardingData?.activityLevel || "moderate",
-        dietPreference: onboardingData?.dietPreference || "vegetarian",
-        weightProgress: weightLogs,
-        foodLogs: meals
-      };
+      const result = await callGeminiDirectly(userText, userContext);
+      
+      const formattedReply = `🤖 **ZenZi Coach Insights**
 
-      const clientApiKey = typeof window !== "undefined" 
-        ? localStorage.getItem("zenlog_client_gemini_api_key") 
-        : null;
+${result.summary}
 
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: userText,
-          userContext,
-          clientApiKey: clientApiKey || undefined
-        })
-      });
+**Daily Targets:**
+• Calorie Recommendation: **${result.caloriesRecommendation} kcal** (Logged: ${loggedCalories} kcal)
+• Protein Recommendation: **${result.proteinRecommendation}g** (Logged: ${loggedProtein}g)
 
-      const resData = await response.json();
+**Advice:**
+${result.advice.map((item) => `• ${item}`).join("\n")}
 
-      if (!response.ok) {
-        throw new Error(resData.error || "Failed to communicate with AI.");
-      }
+**Warnings:**
+${result.warnings.map((item) => `⚠️ ${item}`).join("\n")}
 
-      if (resData.reply) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "model",
-            text: resData.reply,
-            timestamp: new Date()
-          }
-        ]);
-      }
+**Next Steps:**
+${result.nextSteps.map((item) => `👉 ${item}`).join("\n")}`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          text: formattedReply,
+          timestamp: new Date()
+        }
+      ]);
     } catch (e: any) {
-      console.error("[ZenZi Chatbot Send Error]:", e);
-      setApiError("Connection timed out. Please try sending again.");
+      console.warn("[ZenZi Client Send] Falling back to local responder:", e.message);
+      
+      const fallback = getLocalFallback(userContext, e.message);
+      const query = userText.toLowerCase();
+      let replyText = "";
+
+      if (query.includes("veg") || query.includes("vegetary") || query.includes("vegetarian")) {
+        replyText = `Hey ${userContext.name}! For high-quality Indian vegetarian protein, here are the absolute best staples to hit your ${fallback.proteinRecommendation}g target:
+• Raw Paneer: 18g protein per 100g
+• Roasted Chana: 20g protein per 100g
+• Soya Chunks: 52g protein per 100g
+• Moong Dal Cheela: 7g protein per cheela`;
+      } else if (query.includes("deficit") || query.includes("fat loss") || query.includes("lose")) {
+        replyText = `To lose weight, you should consume fewer calories than your TDEE. Your daily target calorie is set to ${fallback.caloriesRecommendation} kcal. To maintain muscle, hit your protein goal of ${fallback.proteinRecommendation}g!`;
+      } else {
+        replyText = `Hey! Here is my top coaching recommendation for your ${userContext.currentWeight} kg bodyweight:
+1. Track your meals daily to stay within your ${fallback.caloriesRecommendation} kcal budget.
+2. Fuel recovery by aiming for ${fallback.proteinRecommendation}g of protein daily.`;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "model",
+          text: `🤖 **ZenZi Local Advisor** (Fallback Mode)\n\n${replyText}`,
+          timestamp: new Date()
+        }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -247,7 +420,7 @@ export default function ChatbotPage() {
           </div>
         </div>
 
-        {/* Online/Offline Dynamic Badge */}
+        {/* Online/Offline Badge */}
         <div className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black ${
           isOffline 
             ? "bg-rose-50 border-rose-100 text-rose-800" 
