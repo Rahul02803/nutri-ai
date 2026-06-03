@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
-import { ArrowLeft, Send, Sparkles, User } from "lucide-react";
+import { ArrowLeft, Send, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
@@ -22,6 +22,7 @@ export default function ChatbotPage() {
   const [inputVal, setInputVal] = useState("");
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +46,47 @@ export default function ChatbotPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  // Handle Offline state detection
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
+  }, []);
+
+  // Load cached chat messages on mount (Step 16)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("zenlog_coach_chat_history_v2");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const mapped = parsed.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp)
+          }));
+          setMessages(mapped);
+        } catch (e) {
+          console.error("Failed to parse cached chat history", e);
+        }
+      }
+    }
+  }, []);
+
+  // Save chat messages to cache whenever they change
+  useEffect(() => {
+    if (messages.length > 0 && typeof window !== "undefined") {
+      localStorage.setItem("zenlog_coach_chat_history_v2", JSON.stringify(messages));
+    }
+  }, [messages]);
 
   // Trigger initial report on load if empty
   useEffect(() => {
@@ -106,7 +148,7 @@ export default function ChatbotPage() {
         ]);
       }
     } catch (e: any) {
-      console.error(e);
+      console.error("[ZenZi Chatbot Client Error]:", e);
       setApiError("Failed to trigger AI analysis. Tap retry below.");
     } finally {
       setLoading(false);
@@ -176,7 +218,7 @@ export default function ChatbotPage() {
         ]);
       }
     } catch (e: any) {
-      console.error(e);
+      console.error("[ZenZi Chatbot Send Error]:", e);
       setApiError("Connection timed out. Please try sending again.");
     } finally {
       setLoading(false);
@@ -198,20 +240,24 @@ export default function ChatbotPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <span className="text-[10px] tracking-widest font-black uppercase text-slate-400 font-mono">ZenLog Coach</span>
+            <span className="text-[10px] tracking-widest font-black uppercase text-slate-400 font-mono">ZenZi Coach</span>
             <h1 className="text-xl font-black tracking-tight font-outfit mt-0.5 text-black">
               AI Nutrition & Fitness
             </h1>
           </div>
         </div>
 
-        {/* Online dynamic badge */}
-        <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black text-black">
+        {/* Online/Offline Dynamic Badge */}
+        <div className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-[10px] font-black ${
+          isOffline 
+            ? "bg-rose-50 border-rose-100 text-rose-800" 
+            : "bg-slate-50 border-slate-100 text-black"
+        }`}>
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            {!isOffline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOffline ? "bg-rose-500" : "bg-emerald-500"}`}></span>
           </span>
-          <span>COACH ACTIVE</span>
+          <span>{isOffline ? "LOCAL ADVISOR" : "COACH ACTIVE"}</span>
         </div>
       </div>
 
@@ -223,7 +269,7 @@ export default function ChatbotPage() {
               <Sparkles className="h-5 w-5 text-black" />
             </div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono animate-pulse">
-              Analyzing physical logs...
+              ZenZi is analyzing your nutrition...
             </p>
           </div>
         )}

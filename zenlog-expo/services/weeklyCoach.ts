@@ -69,7 +69,7 @@ Formulate a highly professional, clinical, encouraging 2-sentence recommendation
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const payload = {
         contents: [
           {

@@ -85,7 +85,7 @@ IMPORTANT: Do not return any markdown markup like \`\`\`json or \`\`\`. Your out
   };
 
   try {
-    const data = await callGeminiApi("gemini-2.5-flash", payload);
+    const data = await callGeminiApi("gemini-1.5-flash", payload);
     const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!replyText) {
       throw new Error("No textual candidates returned from Gemini Vision model.");
@@ -131,14 +131,14 @@ export async function askGeminiCoach(
   const loggedCal = todayMeals.reduce((sum, m) => sum + m.calories, 0);
   const loggedPro = todayMeals.reduce((sum, m) => sum + m.protein, 0);
 
-  const contextPrompt = `You are a premium, supportive personal AI Fitness & Nutrition Coach for ZenLog.
+  const contextPrompt = `You are ZenZi, an elite AI nutrition and fitness coach.
 User Context:
 - Name: ${user.name || "ZenLog Member"}
 - Weight: ${currentWeight} kg (Target: ${user.target_weight || 65} kg)
 - Transformation Goal: ${goal.toUpperCase()}
 - Daily Calorie Target: ${targetCal} kcal (Consumed Today: ${loggedCal} kcal, remaining: ${Math.max(0, targetCal - loggedCal)} kcal)
 - Daily Protein Goal: ${targetPro}g (Consumed Today: ${loggedPro}g, remaining: ${Math.max(0, targetPro - loggedPro)}g)
-
+ 
 Give highly personalized, encouraging advice. Primarily suggest Indian home-cooked foods. Make bullet points clean. Keep your response concise (under 120 words).`;
 
   const payload = {
@@ -155,7 +155,7 @@ Give highly personalized, encouraging advice. Primarily suggest Indian home-cook
   };
 
   try {
-    const data = await callGeminiApi("gemini-2.5-flash", payload);
+    const data = await callGeminiApi("gemini-1.5-flash", payload);
     const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     return replyText || "My apologies, I am having trouble connecting to my coaching algorithms right now. Try again shortly!";
   } catch (e) {

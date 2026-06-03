@@ -72,7 +72,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
         
         <View style={styles.coachNameWrapper}>
-          <Text style={styles.coachTitle}>ZenLog AI Coach</Text>
+          <Text style={styles.coachTitle}>ZenZi AI Coach</Text>
           <View style={styles.onlineBadge}>
             <View style={styles.greenDot} />
             <Text style={styles.onlineText}>Active Support</Text>
