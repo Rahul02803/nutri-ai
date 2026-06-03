@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal, SafeAreaView } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Modal, SafeAreaView } from "react-native";
 import { useStore, IndianFoodItem } from "../store/useStore";
 import { useRouter } from "expo-router";
+import { FlashList } from "@shopify/flash-list";
 import { 
   ArrowLeft as LucideArrowLeft, 
   Search as LucideSearch,
@@ -20,17 +21,33 @@ export default function SearchScreen() {
     indianFoods,
     recentFoods,
     logRecentFood,
-    logMeal
+    logMeal,
+    setTabBarHidden
   } = useStore();
 
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedFood, setSelectedFood] = useState<IndianFoodItem | null>(null);
 
-  // Filter foods by search query
+  // Debounce query inputs
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 150);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Tab bar hiding trigger
+  useEffect(() => {
+    setTabBarHidden(selectedFood !== null);
+    return () => setTabBarHidden(false);
+  }, [selectedFood, setTabBarHidden]);
+
+  // Filter foods by debounced query
   const getFilteredFoods = () => {
     let list = indianFoods;
-    if (query.trim()) {
-      const norm = query.toLowerCase().trim();
+    if (debouncedQuery.trim()) {
+      const norm = debouncedQuery.toLowerCase().trim();
       list = list.filter((f) => f.name.toLowerCase().includes(norm) || f.category.toLowerCase().includes(norm));
     }
     return list.sort((a, b) => b.popularity_score - a.popularity_score);
@@ -38,7 +55,7 @@ export default function SearchScreen() {
 
   const filteredFoods = getFilteredFoods();
 
-  // Favorite foods (Mock favorite dishes based on popular scores)
+  // Favorite foods
   const favoriteFoods = indianFoods.slice(0, 3);
 
   const handleSelectFood = (food: IndianFoodItem) => {
@@ -76,6 +93,58 @@ export default function SearchScreen() {
     );
   };
 
+  const renderHeader = () => (
+    <View>
+      {/* FAVORITE FOODS SECTION */}
+      {!query && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Favorites</Text>
+          <View style={styles.favoritesGrid}>
+            {favoriteFoods.map((food) => (
+              <TouchableOpacity
+                key={`fav-${food.id}`}
+                style={styles.favCard}
+                onPress={() => handleSelectFood(food)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.favHeader}>
+                  <Star size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+                  <Text style={styles.favName} numberOfLines={1}>{food.name}</Text>
+                </View>
+                <Text style={styles.favCal}>{food.calories} kcal</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* RECENT SEARCHES */}
+      {!query && recentFoods.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Foods</Text>
+          <View style={styles.recentList}>
+            {recentFoods.slice(0, 4).map((food) => (
+              <TouchableOpacity
+                key={`rec-${food.id}`}
+                style={styles.recentRow}
+                onPress={() => handleSelectFood(food)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.recentText}>{food.name}</Text>
+                <Text style={styles.recentCal}>{food.calories} kcal</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* SECTION TITLE */}
+      <Text style={styles.sectionTitle}>
+        {query ? `Results (${filteredFoods.length})` : "Verified Dishes"}
+      </Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -93,7 +162,7 @@ export default function SearchScreen() {
           <View style={{ width: 40 }} /> {/* Spacer to align title */}
         </View>
 
-        {/* Minimalist Search Box (Soft gray background, 20px rounded) */}
+        {/* Minimalist Search Box */}
         <View style={styles.searchBox}>
           <Search size={18} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
@@ -110,83 +179,38 @@ export default function SearchScreen() {
           )}
         </View>
 
-        <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          
-          {/* FAVORITE FOODS SECTION */}
-          {!query && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Favorites</Text>
-              <View style={styles.favoritesGrid}>
-                {favoriteFoods.map((food) => (
-                  <TouchableOpacity
-                    key={`fav-${food.id}`}
-                    style={styles.favCard}
-                    onPress={() => handleSelectFood(food)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.favHeader}>
-                      <Star size={12} color="#3B82F6" style={{ marginRight: 4 }} />
-                      <Text style={styles.favName} numberOfLines={1}>{food.name}</Text>
-                    </View>
-                    <Text style={styles.favCal}>{food.calories} kcal</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* RECENT SEARCHES */}
-          {!query && recentFoods.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Foods</Text>
-              <View style={styles.recentList}>
-                {recentFoods.slice(0, 4).map((food) => (
-                  <TouchableOpacity
-                    key={`rec-${food.id}`}
-                    style={styles.recentRow}
-                    onPress={() => handleSelectFood(food)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.recentText}>{food.name}</Text>
-                    <Text style={styles.recentCal}>{food.calories} kcal</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* DATABASE DISHES LIST */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {query ? `Results (${filteredFoods.length})` : "Verified Dishes"}
-            </Text>
-
-            {filteredFoods.length === 0 ? (
+        {/* High performance FlashList viewport wrapper */}
+        <View style={{ flex: 1, paddingHorizontal: 24 }}>
+          <FlashList
+            data={filteredFoods}
+            keyExtractor={(item) => item.id}
+            estimatedItemSize={72}
+            ListHeaderComponent={renderHeader}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.foodRow}
+                onPress={() => handleSelectFood(item)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.foodLeft}>
+                  <Text style={styles.foodName}>{item.name}</Text>
+                  <Text style={styles.foodMeta}>{item.category} • {item.serving_size}</Text>
+                </View>
+                <View style={styles.foodRight}>
+                  <Text style={styles.foodCal}>{item.calories} kcal</Text>
+                  <Text style={styles.foodMacros}>P: {item.protein}g • C: {item.carbs}g • F: {item.fat}g</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={() => (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyText}>No matching foods found</Text>
               </View>
-            ) : (
-              filteredFoods.map((food) => (
-                <TouchableOpacity
-                  key={food.id}
-                  style={styles.foodRow}
-                  onPress={() => handleSelectFood(food)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.foodLeft}>
-                    <Text style={styles.foodName}>{food.name}</Text>
-                    <Text style={styles.foodMeta}>{food.category} • {food.serving_size}</Text>
-                  </View>
-                  <View style={styles.foodRight}>
-                    <Text style={styles.foodCal}>{food.calories} kcal</Text>
-                    <Text style={styles.foodMacros}>P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
             )}
-          </View>
-
-        </ScrollView>
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 40 }}
+          />
+        </View>
 
         {/* LOGGING DETAILS SLIDE SHEET MODAL */}
         {selectedFood && (
@@ -281,6 +305,8 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   safeArea: {

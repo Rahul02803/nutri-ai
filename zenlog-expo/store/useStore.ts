@@ -141,8 +141,14 @@ interface ZenlogState {
   hydrationLogs: HydrationLog[];
   sleepLogs: SleepLog[];
 
+  // UI States
+  isTabBarHidden: boolean;
+  _hasHydrated: boolean;
+
   // Actions
   login: (email: string, name?: string) => void;
+  setTabBarHidden: (hidden: boolean) => void;
+  setHydrated: (hydrated: boolean) => void;
   logout: () => void;
   saveOnboarding: (profile: Partial<UserProfile>) => void;
   logMeal: (meal: Omit<Meal, "id" | "user_id" | "created_at">, foods?: Omit<FoodItem, "id" | "meal_id">[]) => void;
@@ -601,13 +607,39 @@ export const useStore = create<ZenlogState>()(
   hydrationLogs: preloaded.hydrationLogs,
   sleepLogs: preloaded.sleepLogs,
 
-  login: (email, name) => set((state) => ({
-    user: {
-      id: "usr_" + Math.random().toString(36).substr(2, 9),
-      email,
-      name: name || email.split("@")[0]
+  // UI States
+  isTabBarHidden: false,
+  _hasHydrated: false,
+
+  login: (email, name) => set((state) => {
+    // If user already exists with matching email, preserve all onboarding profile variables to avoid resets
+    if (state.user && state.user.email === email) {
+      return {};
     }
-  })),
+    return {
+      user: {
+        id: state.user?.id || "usr_" + Math.random().toString(36).substr(2, 9),
+        email,
+        name: name || state.user?.name || email.split("@")[0],
+        age: state.user?.age,
+        gender: state.user?.gender,
+        height: state.user?.height,
+        current_weight: state.user?.current_weight,
+        activity_level: state.user?.activity_level,
+        goal: state.user?.goal,
+        target_weight: state.user?.target_weight,
+        diet_preference: state.user?.diet_preference,
+        steps_goal: state.user?.steps_goal,
+        target_calories: state.user?.target_calories,
+        target_protein: state.user?.target_protein,
+        target_carbs: state.user?.target_carbs,
+        target_fat: state.user?.target_fat
+      }
+    };
+  }),
+
+  setTabBarHidden: (hidden) => set({ isTabBarHidden: hidden }),
+  setHydrated: (hydrated) => set({ _hasHydrated: hydrated }),
 
   logout: () => set({
     user: null,
@@ -974,5 +1006,8 @@ export const useStore = create<ZenlogState>()(
   }
 }), {
   name: "zenlog-storage-v3",
-  storage: createJSONStorage(() => AsyncStorage)
-})));
+  storage: createJSONStorage(() => AsyncStorage),
+  onRehydrateStorage: () => (state) => {
+    state?.setHydrated(true);
+  }
+}));

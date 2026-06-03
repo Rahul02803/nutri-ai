@@ -14,7 +14,7 @@ const User = LucideUser as any;
 import { useStore } from "../../store/useStore";
 
 export default function TabLayout() {
-  const { isDarkMode } = useStore();
+  const { isDarkMode, isTabBarHidden } = useStore();
 
   const activeColor = "#111827";
   const inactiveColor = "#9CA3AF";
@@ -39,6 +39,7 @@ export default function TabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowRadius: 10,
           elevation: 2,
+          display: isTabBarHidden ? "none" : "flex",
         },
         tabBarLabelStyle: {
           fontSize: 10,

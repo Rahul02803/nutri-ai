@@ -22,17 +22,32 @@ export default function LoginPage() {
     }
 
     login(email);
-    router.replace("/(onboarding)");
+    const currentUser = useStore.getState().user;
+    if (currentUser && currentUser.goal) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/(onboarding)");
+    }
   };
 
   const handleMockGoogleLogin = () => {
     login("rahul.sharma@gmail.com", "Rahul Sharma");
-    router.replace("/(onboarding)");
+    const currentUser = useStore.getState().user;
+    if (currentUser && currentUser.goal) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/(onboarding)");
+    }
   };
 
   const handleMockAppleLogin = () => {
     login("apple.user@icloud.com", "Apple User");
-    router.replace("/(onboarding)");
+    const currentUser = useStore.getState().user;
+    if (currentUser && currentUser.goal) {
+      router.replace("/(tabs)");
+    } else {
+      router.replace("/(onboarding)");
+    }
   };
 
   return (

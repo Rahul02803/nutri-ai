@@ -3,8 +3,7 @@ import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { AppProvider } from "@/context/AppContext";
-import NavigationHeader from "@/components/NavigationHeader";
-import BottomNavBar from "@/components/BottomNavBar";
+import LayoutContent from "@/components/LayoutContent";
 
 const outfit = Outfit({ 
   subsets: ["latin"],
@@ -37,13 +36,9 @@ export default function RootLayout({
       <body className="antialiased min-h-screen bg-[#F4F4F6] text-[#111111] flex items-stretch justify-center">
         <AuthProvider>
           <AppProvider>
-            {/* Native Mobile Viewport Container Shell */}
-            <div className="w-full max-w-md min-h-screen bg-[#FFFFFF] flex flex-col relative shadow-[0_0_60px_rgba(0,0,0,0.05)] border-x border-[#ECECEF] overflow-x-hidden">
-              <main className="flex-grow">
-                {children}
-              </main>
-              <BottomNavBar />
-            </div>
+            <LayoutContent>
+              {children}
+            </LayoutContent>
           </AppProvider>
         </AuthProvider>
       </body>

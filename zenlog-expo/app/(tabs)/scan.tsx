@@ -20,10 +20,17 @@ const AlertTriangle = LucideAlertTriangle as any;
 
 export default function ScannerScreen() {
   const router = useRouter();
-  const { logMeal, savePredictionAndCorrection } = useStore();
+  const { logMeal, savePredictionAndCorrection, setTabBarHidden } = useStore();
 
   const [scanState, setScanState] = useState<"viewport" | "analyzing" | "confidence_fallback" | "edit_sheet">("viewport");
   const [busy, setBusy] = useState(false);
+
+  // Tab bar hiding trigger
+  React.useEffect(() => {
+    const isOverlayOpen = scanState !== "viewport";
+    setTabBarHidden(isOverlayOpen);
+    return () => setTabBarHidden(false);
+  }, [scanState, setTabBarHidden]);
 
   // Gemini scanned results
   const [scannedFoods, setScannedFoods] = useState<ScannedFoodResult[]>([]);

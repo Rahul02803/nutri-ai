@@ -1,14 +1,15 @@
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { user } = useStore();
+  const { user, _hasHydrated } = useStore();
 
-  // Automatic redirect if already logged in
+  // Automatic redirect if already logged in after store hydration completes
   useEffect(() => {
+    if (!_hasHydrated) return;
     if (user) {
       if (user.goal) {
         router.replace("/(tabs)");
@@ -16,7 +17,15 @@ export default function WelcomePage() {
         router.replace("/(onboarding)");
       }
     }
-  }, [user]);
+  }, [user, _hasHydrated]);
+
+  if (!_hasHydrated) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
