@@ -1,31 +1,61 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { useStore } from "../store/useStore";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { user, _hasHydrated } = useStore();
+  const navigation = useNavigation();
+  const { user } = useStore();
+  const [isNavigating, setIsNavigating] = useState(false);
 
-  // Automatic redirect if already logged in after store hydration completes
+  // Automatic redirect if already logged in
   useEffect(() => {
-    if (!_hasHydrated) return;
+    console.log("[WelcomePage] Loaded. User state:", user ? `Logged in (${user.email})` : "Guest/Logged out");
     if (user) {
-      if (user.goal) {
-        router.replace("/(tabs)");
+      // Clear initial guest state if they logged out previously
+      if (user.id === "usr_guest" && !user.goal) {
+        console.log("[WelcomePage] Guest user found but onboarding incomplete.");
       } else {
-        router.replace("/(onboarding)");
+        const target = user.goal ? "/(tabs)" : "/onboarding";
+        console.log(`[WelcomePage] Automatic redirect triggered. Target route: ${target}`);
+        try {
+          const state = navigation.getState();
+          console.log("[WelcomePage] Current navigation stack:", state?.routes?.map(r => r.name));
+        } catch (e) {
+          console.log("[WelcomePage] Could not retrieve stack state:", e);
+        }
+        
+        if (user.goal) {
+          router.replace("/(tabs)");
+        } else {
+          router.replace("/onboarding");
+        }
       }
     }
-  }, [user, _hasHydrated]);
+  }, [user]);
 
-  if (!_hasHydrated) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#FFFFFF", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
-    );
-  }
+  const navigateToLogin = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    console.log("[WelcomePage] Navigation action initiated for Get Started / Sign In.");
+    console.log("[WelcomePage] Target route name: /login");
+    
+    try {
+      const state = navigation.getState();
+      console.log("[WelcomePage] Current stack before push:", state?.routes?.map(r => r.name));
+    } catch (e) {
+      console.log("[WelcomePage] Could not retrieve stack state:", e);
+    }
+
+    try {
+      router.push("/login");
+      console.log("[WelcomePage] Navigation push success.");
+    } catch (err) {
+      console.error("[WelcomePage] Navigation push failed:", err);
+      setIsNavigating(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,17 +98,23 @@ export default function WelcomePage() {
         {/* Footer Actions (Action 1: Get Started primary electric blue, Action 2: Sign In text link) */}
         <View style={styles.footer}>
           <TouchableOpacity 
-            style={styles.primaryButton} 
-            onPress={() => router.push("/(auth)/login")}
+            style={[styles.primaryButton, isNavigating && styles.buttonDisabled]} 
+            onPress={navigateToLogin}
             activeOpacity={0.9}
+            disabled={isNavigating}
           >
-            <Text style={styles.primaryButtonText}>Get Started</Text>
+            {isNavigating ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Get Started</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.secondaryButton} 
-            onPress={() => router.push("/(auth)/login")}
+            onPress={navigateToLogin}
             activeOpacity={0.8}
+            disabled={isNavigating}
           >
             <Text style={styles.secondaryButtonText}>Already have an account? Sign In</Text>
           </TouchableOpacity>
@@ -180,5 +216,8 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontSize: 12,
     fontWeight: "800",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });
