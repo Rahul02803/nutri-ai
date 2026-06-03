@@ -6,12 +6,14 @@ export interface WeeklySummaryReport {
   proteinGoalAchievedDays: number;
   proteinGoalTotalDays: number;
   aiCoachRecommendation: string;
+  newTargetCalories: number;
+  newTargetProtein: number;
   generatedDate: string;
 }
 
 /**
  * 1. Weekly AI Coaching Aggregator
- * Generates structured performance feedback based on the past 7 days logs
+ * Generates structured performance feedback and adjusts macros based on the past 7 days logs
  */
 export async function generateWeeklySummaryReport(
   user: UserProfile,
@@ -40,6 +42,7 @@ export async function generateWeeklySummaryReport(
   let totalCal = 0;
   let proteinGoalAchievedDays = 0;
   const targetProtein = user.target_protein || 140;
+  const oldCalories = user.target_calories || 2000;
 
   last7Days.forEach((dateStr) => {
     const dayMeals = meals.filter((m) => m.created_at.startsWith(dateStr));
@@ -54,22 +57,34 @@ export async function generateWeeklySummaryReport(
 
   const averageCalories = Math.round(totalCal / 7);
 
-  // Gemini Coach Instruction prompt for Weekly Summary analysis
+// Gemini 1.5 Pro Instruction prompt for Weekly Summary analysis
   const systemInstruction = `You are a premium AI Nutrition Coach for ZenLog.
 Analyze this user's weekly check-in statistics:
-- Weight Change: ${weightChangeKg > 0 ? `+${weightChangeKg}` : weightChangeKg} kg
-- Average Daily Calories: ${averageCalories} kcal
-- Protein Goals Met: ${proteinGoalAchievedDays} out of 7 days (Target: ${targetProtein}g daily)
-- Overall Target: ${user.goal?.toUpperCase() || "MAINTAIN"}
+- Current Target Calories: ${oldCalories} kcal
+- Current Target Protein: ${targetProtein}g
+- Weight Change: ${weightChangeKg > 0 ? "+" + weightChangeKg : weightChangeKg} kg
+- Average Daily Consumed Calories: ${averageCalories} kcal
+- Protein Goals Met: ${proteinGoalAchievedDays} out of 7 days
+- Overall Transformation Target: ${user.goal?.toUpperCase() || "MAINTAIN"}
 
-Formulate a highly professional, clinical, encouraging 2-sentence recommendation advising on calorie adjustments, macro splits, or step count adjustments. Use under 60 words.`;
+Adjust their caloric and protein targets if they are stalling or losing/gaining too fast.
+Formulate a highly professional, clinical, encouraging 2-sentence recommendation.
+Return your response STRICTLY as a valid JSON object matching this structure:
+{
+  "recommendation": "Your coaching message...",
+  "newTargetCalories": 2100,
+  "newTargetProtein": 150
+}`;
 
   let aiCoachRecommendation = `Maintain your steady fat loss by increasing daily protein by 10g and keeping steps above 8,000 to sustain metabolic expenditure splits.`;
+  let newTargetCalories = oldCalories;
+  let newTargetProtein = targetProtein;
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      // Upgraded to Gemini 1.5 Pro for advanced reasoning
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
       const payload = {
         contents: [
           {
@@ -78,8 +93,8 @@ Formulate a highly professional, clinical, encouraging 2-sentence recommendation
           }
         ],
         generationConfig: {
-          maxOutputTokens: 150,
-          temperature: 0.5
+          temperature: 0.2,
+          responseMimeType: "application/json"
         }
       };
 
@@ -92,7 +107,12 @@ Formulate a highly professional, clinical, encouraging 2-sentence recommendation
       if (response.ok) {
         const resData = await response.json();
         const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) aiCoachRecommendation = text.trim();
+        if (text) {
+          const parsed = JSON.parse(text);
+          aiCoachRecommendation = parsed.recommendation || aiCoachRecommendation;
+          newTargetCalories = parsed.newTargetCalories || newTargetCalories;
+          newTargetProtein = parsed.newTargetProtein || newTargetProtein;
+        }
       }
     }
   } catch (e) {
@@ -105,6 +125,8 @@ Formulate a highly professional, clinical, encouraging 2-sentence recommendation
     proteinGoalAchievedDays,
     proteinGoalTotalDays: 7,
     aiCoachRecommendation,
+    newTargetCalories,
+    newTargetProtein,
     generatedDate
   };
 }

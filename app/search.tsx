@@ -1,28 +1,123 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Modal } from "react-native";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TextInput, 
+  TouchableOpacity, 
+  Alert, 
+  Modal, 
+  SafeAreaView, 
+  ActivityIndicator, 
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform 
+} from "react-native";
 import { useStore, IndianFoodItem } from "../store/useStore";
 import { useRouter } from "expo-router";
 import { 
   ArrowLeft as LucideArrowLeft, 
-  Search as LucideSearch, 
-  CheckCircle as LucideCheckCircle, 
-  Clock as LucideClock, 
-  Star as LucideStar, 
-  Plus as LucidePlus, 
-  Shield as LucideShield, 
-  Settings as LucideSettings, 
-  Info as LucideInfo 
+  Search as LucideSearch,
+  Star as LucideStar,
+  X as LucideX,
+  Plus as LucidePlus,
+  Minus as LucideMinus
 } from "lucide-react-native";
+import { FlashList } from "@shopify/flash-list";
 
 const ArrowLeft = LucideArrowLeft as any;
 const Search = LucideSearch as any;
-const CheckCircle = LucideCheckCircle as any;
-const Clock = LucideClock as any;
 const Star = LucideStar as any;
+const X = LucideX as any;
 const Plus = LucidePlus as any;
-const Shield = LucideShield as any;
-const Settings = LucideSettings as any;
-const Info = LucideInfo as any;
+const Minus = LucideMinus as any;
+
+// Helper to parse base grams from serving_size string (e.g., "100g" -> 100, "1 plate (200g)" -> 200)
+const parseBaseGrams = (servingSize: string): number => {
+  const match = servingSize.match(/(\d+(?:\.\d+)?)\s*g/i);
+  return match ? parseFloat(match[1]) : 100;
+};
+
+// Helper to determine the gram weight of 1 unit of a selected option for a given food
+const getUnitWeight = (foodName: string, servingSize: string, unit: string): number => {
+  const normName = foodName.toLowerCase();
+  const baseGrams = parseBaseGrams(servingSize);
+
+  switch (unit) {
+    case "g":
+      return 1;
+    case "kg":
+      return 1000;
+    case "ml":
+      return 1;
+    case "liter":
+      return 1000;
+    case "tbsp":
+      return 15;
+    case "tsp":
+      return 5;
+    case "cup":
+      return 240;
+    case "bowl":
+      if (servingSize.toLowerCase().includes("bowl")) {
+        return baseGrams;
+      }
+      return 300;
+    case "serving":
+      return baseGrams;
+    case "piece":
+      if (normName.includes("roti") || normName.includes("chapati")) return 40;
+      if (normName.includes("samosa")) return 75;
+      if (normName.includes("idli")) return 50;
+      if (normName.includes("dosa")) return 120;
+      if (normName.includes("banana")) return 100;
+      if (normName.includes("apple")) return 120;
+      if (normName.includes("egg")) return 50;
+      if (normName.includes("chicken")) return 80;
+      if (normName.includes("jalebi")) return 25;
+      if (normName.includes("paneer")) return 20;
+      if (normName.includes("tofu")) return 25;
+      if (normName.includes("vada")) return 60;
+      if (normName.includes("bhature") || normName.includes("bhatura")) return 60;
+      if (normName.includes("puri") || normName.includes("poori")) return 25;
+      if (normName.includes("gulab jamun")) return 40;
+      if (normName.includes("rasgulla")) return 45;
+      if (normName.includes("laddu") || normName.includes("ladoo")) return 40;
+      if (normName.includes("slice")) return 30;
+
+      if (servingSize.toLowerCase().includes("piece") || servingSize.toLowerCase().includes("pc")) {
+        return baseGrams;
+      }
+      return 100;
+    default:
+      return baseGrams;
+  }
+};
+
+interface FoodRowProps {
+  food: IndianFoodItem;
+  onPress: (food: IndianFoodItem) => void;
+}
+
+// Memoized food row component for high performance virtualized list
+const FoodRow = React.memo(({ food, onPress }: FoodRowProps) => {
+  return (
+    <TouchableOpacity
+      style={styles.foodRow}
+      onPress={() => onPress(food)}
+      activeOpacity={0.8}
+    >
+      <View style={styles.foodLeft}>
+        <Text style={styles.foodName}>{food.name}</Text>
+        <Text style={styles.foodMeta}>{food.category} • {food.serving_size}</Text>
+      </View>
+      <View style={styles.foodRight}>
+        <Text style={styles.foodCal}>{food.calories} kcal</Text>
+        <Text style={styles.foodMacros}>P: {food.protein}g • C: {food.carbs}g • F: {food.fat}g</Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -30,52 +125,111 @@ export default function SearchScreen() {
     indianFoods,
     recentFoods,
     logRecentFood,
-    searchIndianFoods,
     logMeal
   } = useStore();
 
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [inputText, setInputText] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedFood, setSelectedFood] = useState<IndianFoodItem | null>(null);
 
-  const categories = ["All", "North Indian", "South Indian", "Street Food", "Fast Food", "Restaurant Meals", "Vegetarian", "Non Vegetarian"];
+  // Unit and quantity states
+  const [selectedUnit, setSelectedUnit] = useState<string>("serving");
+  const [quantityText, setQuantityText] = useState<string>("1");
 
-  // Filter foods by category and search query
-  const getFilteredFoods = () => {
-    let list = indianFoods;
-
-    if (activeCategory !== "All") {
-      list = list.filter((f) => {
-        if (activeCategory === "Vegetarian") {
-          return f.category === "Vegetarian" || f.category === "North Indian" || f.category === "South Indian" || f.name.toLowerCase().includes("paneer") || f.name.toLowerCase().includes("idli") || f.name.toLowerCase().includes("dosa");
-        }
-        if (activeCategory === "Non Vegetarian") {
-          return f.category === "Non Vegetarian" || f.name.toLowerCase().includes("chicken") || f.name.toLowerCase().includes("mutton") || f.name.toLowerCase().includes("fish");
-        }
-        return f.category === activeCategory;
-      });
+  // Debouncing input text
+  useEffect(() => {
+    if (inputText === "") {
+      setDebouncedQuery("");
+      return;
     }
+    const handler = setTimeout(() => {
+      setDebouncedQuery(inputText);
+    }, 300);
 
-    if (query.trim()) {
-      const norm = query.toLowerCase().trim();
-      list = list.filter((f) => f.name.toLowerCase().includes(norm) || f.category.toLowerCase().includes(norm));
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputText]);
+
+  const searchCache = useRef<{ [query: string]: IndianFoodItem[] }>({});
+
+  // Memoized search querying
+  const filteredFoods = useMemo(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      return indianFoods.sort((a, b) => b.popularity_score - a.popularity_score);
     }
+    if (searchCache.current[q]) {
+      return searchCache.current[q];
+    }
+    // Perform search using the store's fuzzy matching engine
+    const results = useStore.getState().searchIndianFoods(q);
+    searchCache.current[q] = results;
+    return results;
+  }, [debouncedQuery, indianFoods]);
 
-    // Sort by popularity score
-    return list.sort((a, b) => b.popularity_score - a.popularity_score);
-  };
-
-  const filteredFoods = getFilteredFoods();
-
-  // Popular foods list
-  const popularFoods = [...indianFoods]
-    .sort((a, b) => b.popularity_score - a.popularity_score)
-    .slice(0, 4);
-
-  const handleSelectFood = (food: IndianFoodItem) => {
+  const handleSelectFood = useCallback((food: IndianFoodItem) => {
     logRecentFood(food);
     setSelectedFood(food);
+    setSelectedUnit("serving");
+    setQuantityText("1");
+  }, [logRecentFood]);
+
+  const UNITS = ["serving", "piece", "g", "bowl", "cup", "tbsp", "tsp", "kg", "ml", "liter"];
+
+  const getStepSize = (unit: string): number => {
+    if (unit === "g" || unit === "ml") return 50;
+    if (unit === "kg" || unit === "liter") return 0.1;
+    return 1;
   };
+
+  const handleUnitChange = (unit: string) => {
+    setSelectedUnit(unit);
+    if (unit === "g" || unit === "ml") {
+      setQuantityText("100");
+    } else if (unit === "kg" || unit === "liter") {
+      setQuantityText("0.1");
+    } else {
+      setQuantityText("1");
+    }
+  };
+
+  const incrementQuantity = () => {
+    const step = getStepSize(selectedUnit);
+    const currentVal = parseFloat(quantityText) || 0;
+    const newVal = currentVal + step;
+    setQuantityText(parseFloat(newVal.toFixed(2)).toString());
+  };
+
+  const decrementQuantity = () => {
+    const step = getStepSize(selectedUnit);
+    const currentVal = parseFloat(quantityText) || 0;
+    const newVal = Math.max(0, currentVal - step);
+    setQuantityText(parseFloat(newVal.toFixed(2)).toString());
+  };
+
+  // Live macronutrient calculations
+  const liveMacros = useMemo(() => {
+    if (!selectedFood) return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, calcium: 0, iron: 0, totalGrams: 0 };
+    
+    const parsedQty = parseFloat(quantityText) || 0;
+    const baseGrams = parseBaseGrams(selectedFood.serving_size);
+    const unitGrams = getUnitWeight(selectedFood.name, selectedFood.serving_size, selectedUnit);
+    const totalGrams = Math.round(parsedQty * unitGrams * 10) / 10;
+    
+    const factor = totalGrams / baseGrams;
+
+    return {
+      calories: Math.round(selectedFood.calories * factor),
+      protein: Math.round(selectedFood.protein * factor * 10) / 10,
+      carbs: Math.round(selectedFood.carbs * factor * 10) / 10,
+      fat: Math.round(selectedFood.fat * factor * 10) / 10,
+      fiber: Math.round((selectedFood.fiber || 0) * factor * 10) / 10,
+      calcium: Math.round((selectedFood.calcium || 0) * factor * 10) / 10,
+      iron: Math.round((selectedFood.iron || 0) * factor * 10) / 10,
+      totalGrams
+    };
+  }, [selectedFood, quantityText, selectedUnit]);
 
   const handleLogFood = (mealType: "Breakfast" | "Lunch" | "Dinner" | "Snack") => {
     if (!selectedFood) return;
@@ -83,528 +237,488 @@ export default function SearchScreen() {
     logMeal(
       {
         meal_type: mealType,
-        calories: selectedFood.calories,
-        protein: selectedFood.protein,
-        carbs: selectedFood.carbs,
-        fat: selectedFood.fat
+        calories: liveMacros.calories,
+        protein: liveMacros.protein,
+        carbs: liveMacros.carbs,
+        fat: liveMacros.fat
       },
       [
         {
           food_name: selectedFood.name,
-          quantity_grams: 100, // baseline
-          calories: selectedFood.calories,
-          protein: selectedFood.protein,
-          carbs: selectedFood.carbs,
-          fat: selectedFood.fat
+          quantity_grams: liveMacros.totalGrams,
+          calories: liveMacros.calories,
+          protein: liveMacros.protein,
+          carbs: liveMacros.carbs,
+          fat: liveMacros.fat
         }
       ]
     );
 
     Alert.alert(
-      "Logged Successfully",
-      `1 Serving of "${selectedFood.name}" has been logged to ${mealType}!`,
-      [{ text: "Close", onPress: () => setSelectedFood(null) }]
+      "Meal Logged",
+      `Successfully logged ${selectedFood.name} (${liveMacros.totalGrams}g) to ${mealType}!`,
+      [{ text: "Done", onPress: () => { setSelectedFood(null); router.replace("/(tabs)"); } }]
     );
   };
 
-  return (
-    <View style={styles.container}>
-      
-      {/* Search Header Bar */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)")}>
-          <ArrowLeft size={20} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Indian Foods DB</Text>
-        
-        <TouchableOpacity style={styles.adminButton} onPress={() => router.push("/admin")}>
-          <Settings size={18} color="#6B7280" />
-        </TouchableOpacity>
-      </View>
+  const isSearching = inputText !== debouncedQuery;
 
-      {/* Modern Search Engine Bar */}
-      <View style={styles.searchBarWrapper}>
-        <Search size={18} color="#9CA3AF" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search foods: 'Dosa', 'Paneer', 'Chicken'..."
-          placeholderTextColor="#9CA3AF"
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
+  // Render header view for virtualized FlashList
+  const renderListHeader = () => {
+    if (debouncedQuery) {
+      return (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Results ({filteredFoods.length})
+          </Text>
+        </View>
+      );
+    }
 
-      {/* Horizontal categories list */}
-      <View style={styles.categoriesSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesScroll}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, activeCategory === cat && styles.categoryChipActive]}
-              onPress={() => setActiveCategory(cat)}
-            >
-              <Text style={[styles.categoryChipText, activeCategory === cat && styles.categoryChipTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+    const favoriteFoods = indianFoods.slice(0, 3);
 
-      <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* RECENT SEARCHES LIST */}
-        {!query && recentFoods.length > 0 && (
-          <View style={styles.dbSection}>
-            <Text style={styles.sectionTitle}>Recent Searches</Text>
-            <View style={styles.recentGrid}>
-              {recentFoods.map((food) => (
+    return (
+      <View>
+        {/* FAVORITE FOODS SECTION */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Favorites</Text>
+          <View style={styles.favoritesGrid}>
+            {favoriteFoods.map((food) => (
+              <TouchableOpacity
+                key={`fav-${food.id}`}
+                style={styles.favCard}
+                onPress={() => handleSelectFood(food)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.favHeader}>
+                  <Star size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+                  <Text style={styles.favName} numberOfLines={1}>{food.name}</Text>
+                </View>
+                <Text style={styles.favCal}>{food.calories} kcal</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* RECENT SEARCHES */}
+        {recentFoods.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Foods</Text>
+            <View style={styles.recentList}>
+              {recentFoods.slice(0, 4).map((food) => (
                 <TouchableOpacity
                   key={`rec-${food.id}`}
-                  style={styles.recentItem}
-                  onPress={() => setSelectedFood(food)}
-                >
-                  <Clock size={12} color="#9CA3AF" />
-                  <Text style={styles.recentText} numberOfLines={1}>{food.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* POPULAR FOODS CARDS */}
-        {!query && activeCategory === "All" && (
-          <View style={styles.dbSection}>
-            <Text style={styles.sectionTitle}>Popular Today</Text>
-            <View style={styles.popularRow}>
-              {popularFoods.map((food) => (
-                <TouchableOpacity
-                  key={`pop-${food.id}`}
-                  style={styles.popularCard}
+                  style={styles.recentRow}
                   onPress={() => handleSelectFood(food)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.popularHeader}>
-                    <Text style={styles.popularName} numberOfLines={1}>{food.name}</Text>
-                    {food.is_verified && <CheckCircle size={10} color="#14B8A6" />}
-                  </View>
-                  <Text style={styles.popularCal}>{food.calories} kcal</Text>
-                  <Text style={styles.popularMacros}>P: {food.protein}g • C: {food.carbs}g</Text>
+                  <Text style={styles.recentText}>{food.name}</Text>
+                  <Text style={styles.recentCal}>{food.calories} kcal</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
         )}
 
-        {/* DATABASE RESULTS */}
-        <View style={styles.dbSection}>
-          <Text style={styles.sectionTitle}>
-            {query || activeCategory !== "All" ? `Results (${filteredFoods.length})` : "Indian Specialties database"}
-          </Text>
+        {/* DEFAULT VERIFIED DISHES TITLE */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Verified Dishes</Text>
+        </View>
+      </View>
+    );
+  };
 
-          {filteredFoods.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Info size={20} color="#9CA3AF" />
-              <Text style={styles.emptyText}>No matching Indian dishes found.</Text>
-              <TouchableOpacity style={styles.emptyAddBtn} onPress={() => router.push("/admin")}>
-                <Text style={styles.emptyAddText}>ADD CUSTOM DISH</Text>
-              </TouchableOpacity>
-            </View>
+  const renderItem = useCallback(({ item }: { item: IndianFoodItem }) => {
+    return <FoodRow food={item} onPress={handleSelectFood} />;
+  }, [handleSelectFood]);
+
+  const keyExtractor = useCallback((item: IndianFoodItem) => item.id, []);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        
+        {/* Minimal Search Header Bar */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.replace("/(tabs)")}
+            activeOpacity={0.8}
+          >
+            <ArrowLeft size={20} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Search Database</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* Minimalist Search Box (Soft gray background, 20px rounded) */}
+        <View style={styles.searchBox}>
+          <Search size={18} color="#9CA3AF" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search: 'Dosa', 'Paneer', 'Eggs'..."
+            placeholderTextColor="#9CA3AF"
+            value={inputText}
+            onChangeText={setInputText}
+          />
+          {isSearching ? (
+            <ActivityIndicator size="small" color="#9CA3AF" />
           ) : (
-            filteredFoods.map((food) => (
-              <TouchableOpacity
-                key={food.id}
-                style={styles.foodRow}
-                onPress={() => handleSelectFood(food)}
-              >
-                <View style={styles.foodInfo}>
-                  <View style={styles.foodNameWrapper}>
-                    <Text style={styles.foodName}>{food.name}</Text>
-                    {food.is_verified ? (
-                      <View style={styles.badgeVerified}>
-                        <Shield size={8} color="#14B8A6" />
-                        <Text style={styles.badgeText}>VERIFIED</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.badgePending}>
-                        <Text style={styles.badgeTextPending}>USER</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.foodCat}>{food.category} • {food.serving_size}</Text>
-                </View>
-
-                <View style={styles.foodRight}>
-                  <Text style={styles.foodCalories}>{food.calories} kcal</Text>
-                  <Text style={styles.foodMacrosRecap}>P: {food.protein}g • F: {food.fat}g</Text>
-                </View>
+            inputText.length > 0 && (
+              <TouchableOpacity onPress={() => setInputText("")}>
+                <X size={16} color="#6B7280" />
               </TouchableOpacity>
-            ))
+            )
           )}
         </View>
 
-      </ScrollView>
-
-      {/* DETAILED MODAL SHEET */}
-      {selectedFood && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={selectedFood !== null}
-          onRequestClose={() => setSelectedFood(null)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              
-              <View style={styles.modalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>{selectedFood.name}</Text>
-                  <Text style={styles.modalSub}>{selectedFood.category} database preset • {selectedFood.serving_size}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setSelectedFood(null)} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
+        {/* High Performance Virtualized List */}
+        <View style={{ flex: 1 }}>
+          {filteredFoods.length === 0 ? (
+            <ScrollView contentContainerStyle={styles.listContent}>
+              {renderListHeader()}
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>No matching foods found</Text>
               </View>
+            </ScrollView>
+          ) : (
+            <FlashList
+              data={filteredFoods}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              ListHeaderComponent={renderListHeader}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
 
-              {/* Nutrition Ring widget */}
-              <View style={styles.macroBox}>
-                <View style={styles.calWrapper}>
-                  <Text style={styles.calVal}>{selectedFood.calories}</Text>
-                  <Text style={styles.calLabel}>CALORIES</Text>
-                </View>
+        {/* LOGGING DETAILS SLIDE SHEET MODAL */}
+        {selectedFood && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={selectedFood !== null}
+            onRequestClose={() => setSelectedFood(null)}
+          >
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={{ flex: 1 }}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalCard}>
+                  
+                  <View style={styles.modalHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalTitle}>{selectedFood.name}</Text>
+                      <Text style={styles.modalSubtitle}>{selectedFood.category} • {selectedFood.serving_size}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setSelectedFood(null)} 
+                      style={styles.modalCloseBtn}
+                      activeOpacity={0.8}
+                    >
+                      <X size={18} color="#111827" />
+                    </TouchableOpacity>
+                  </View>
 
-                <View style={styles.macrosSplit}>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Protein</Text>
-                    <Text style={styles.splitVal}>{selectedFood.protein}g</Text>
+                  {/* Quantity Stepper & Stepper Buttons */}
+                  <Text style={styles.logLabel}>Adjust Quantity & Unit:</Text>
+                  
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    style={styles.unitScroll}
+                    contentContainerStyle={styles.unitScrollContent}
+                  >
+                    {UNITS.map((unit) => {
+                      const isActive = selectedUnit === unit;
+                      return (
+                        <TouchableOpacity
+                          key={unit}
+                          style={[styles.unitCapsule, isActive && styles.unitCapsuleActive]}
+                          onPress={() => handleUnitChange(unit)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[styles.unitText, isActive && styles.unitTextActive]}>
+                            {unit}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  <View style={styles.quantityContainer}>
+                    <TouchableOpacity 
+                      style={styles.stepperButton} 
+                      onPress={decrementQuantity}
+                      activeOpacity={0.8}
+                    >
+                      <Minus size={18} color="#111827" />
+                    </TouchableOpacity>
+                    
+                    <TextInput
+                      style={styles.quantityInput}
+                      keyboardType="numeric"
+                      value={quantityText}
+                      onChangeText={setQuantityText}
+                      selectTextOnFocus={true}
+                    />
+                    
+                    <TouchableOpacity 
+                      style={styles.stepperButton} 
+                      onPress={incrementQuantity}
+                      activeOpacity={0.8}
+                    >
+                      <Plus size={18} color="#111827" />
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Carbohydrates</Text>
-                    <Text style={styles.splitVal}>{selectedFood.carbs}g</Text>
+
+                  {/* Macro summary card (Soft gray card, rounded 20px) */}
+                  <View style={styles.modalMacroCard}>
+                    <View style={styles.modalCalWrapper}>
+                      <Text style={styles.modalCalVal}>{liveMacros.calories}</Text>
+                      <Text style={styles.modalCalLabel}>Calories</Text>
+                      <Text style={styles.modalWeightLabel}>{liveMacros.totalGrams}g total</Text>
+                    </View>
+
+                    <View style={styles.modalMacrosSplit}>
+                      <View style={styles.splitRow}>
+                        <Text style={styles.splitLabel}>Protein</Text>
+                        <Text style={styles.splitVal}>{liveMacros.protein}g</Text>
+                      </View>
+                      <View style={styles.splitRow}>
+                        <Text style={styles.splitLabel}>Carbs</Text>
+                        <Text style={styles.splitVal}>{liveMacros.carbs}g</Text>
+                      </View>
+                      <View style={styles.splitRow}>
+                        <Text style={styles.splitLabel}>Fats</Text>
+                        <Text style={styles.splitVal}>{liveMacros.fat}g</Text>
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.splitRow}>
-                    <Text style={styles.splitLabel}>Fat</Text>
-                    <Text style={styles.splitVal}>{selectedFood.fat}g</Text>
+
+                  {/* Micro Nutrients Summary inside clean minimal drawer */}
+                  <View style={styles.microsDrawer}>
+                    <Text style={styles.fieldLabel}>Estimated Micros</Text>
+                    <View style={styles.microsGrid}>
+                      <View style={styles.microCol}>
+                        <Text style={styles.microVal}>{liveMacros.fiber}g</Text>
+                        <Text style={styles.microLabel}>Fiber</Text>
+                      </View>
+                      <View style={styles.microCol}>
+                        <Text style={styles.microVal}>{liveMacros.calcium}mg</Text>
+                        <Text style={styles.microLabel}>Calcium</Text>
+                      </View>
+                      <View style={styles.microCol}>
+                        <Text style={styles.microVal}>{liveMacros.iron}mg</Text>
+                        <Text style={styles.microLabel}>Iron</Text>
+                      </View>
+                    </View>
                   </View>
+
+                  {/* Action 1: Instant logging to specific meals */}
+                  <Text style={styles.logLabel}>Select Meal Log Target:</Text>
+                  <View style={styles.logGrid}>
+                    <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Breakfast")} activeOpacity={0.8}>
+                      <Text style={styles.logBtnText}>Breakfast</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Lunch")} activeOpacity={0.8}>
+                      <Text style={styles.logBtnText}>Lunch</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Dinner")} activeOpacity={0.8}>
+                      <Text style={styles.logBtnText}>Dinner</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Snack")} activeOpacity={0.8}>
+                      <Text style={styles.logBtnText}>Snack</Text>
+                    </TouchableOpacity>
+                  </View>
+
                 </View>
               </View>
+            </KeyboardAvoidingView>
+          </Modal>
+        )}
 
-              {/* Micros Grid list */}
-              <View style={styles.microsSection}>
-                <Text style={styles.microsTitle}>Essential Micro-nutrients</Text>
-                <View style={styles.microsGrid}>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.fiber}g</Text>
-                    <Text style={styles.microLabel}>Fiber</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.iron}mg</Text>
-                    <Text style={styles.microLabel}>Iron</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.calcium}mg</Text>
-                    <Text style={styles.microLabel}>Calcium</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.vitamin_d}mcg</Text>
-                    <Text style={styles.microLabel}>Vit D</Text>
-                  </View>
-                  <View style={styles.microCol}>
-                    <Text style={styles.microVal}>{selectedFood.vitamin_b12}mcg</Text>
-                    <Text style={styles.microLabel}>Vit B12</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Tap to log actions */}
-              <Text style={styles.logPrompt}>Tap to log this dish to daily budget:</Text>
-              <View style={styles.logButtonsRow}>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Breakfast")}>
-                  <Text style={styles.logBtnText}>Breakfast</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Lunch")}>
-                  <Text style={styles.logBtnText}>Lunch</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Dinner")}>
-                  <Text style={styles.logBtnText}>Dinner</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.logBtn} onPress={() => handleLogFood("Snack")}>
-                  <Text style={styles.logBtnText}>Snack</Text>
-                </TouchableOpacity>
-              </View>
-
-            </View>
-          </View>
-        </Modal>
-      )}
-
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-// Bypassing Lucide strict typechecks in the stylesheet
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F8F8FA",
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    paddingHorizontal: 20,
-    paddingTop: 54,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   backButton: {
-    padding: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
+    height: 40,
+    width: 40,
+    borderRadius: 20,
+    backgroundColor: "#F4F4F5",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
     color: "#111827",
-    letterSpacing: -0.2,
+    letterSpacing: -0.5,
   },
-  adminButton: {
-    padding: 8,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 12,
-  },
-  searchBarWrapper: {
+  searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 16,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 16,
     paddingHorizontal: 16,
-    height: 48,
+    height: 52,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     color: "#111827",
-    fontWeight: "bold",
+    fontWeight: "700",
   },
-  categoriesSection: {
-    marginBottom: 10,
+  listContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  categoriesScroll: {
-    paddingHorizontal: 20,
-    paddingVertical: 4,
-  },
-  categoryChip: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    marginRight: 8,
-  },
-  categoryChipActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  categoryChipText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#6B7280",
-  },
-  categoryChipTextActive: {
-    color: "#FFFFFF",
-  },
-  scrollBody: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 60,
-  },
-  dbSection: {
-    marginTop: 14,
+  section: {
+    marginTop: 16,
     width: "100%",
+  },
+  sectionHeader: {
+    marginTop: 20,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#9CA3AF",
-    textTransform: "uppercase",
-    marginBottom: 12,
-    textAlign: "left",
-  },
-  recentGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
-  recentItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginRight: 6,
-    marginBottom: 6,
-    maxWidth: 120,
-  },
-  recentText: {
-    fontSize: 10,
-    color: "#4B5563",
-    fontWeight: "bold",
-    marginLeft: 4,
-  },
-  popularRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-    flexWrap: "wrap",
-  },
-  popularCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 18,
-    padding: 12,
-    width: "48%",
-    marginBottom: 10,
-    alignItems: "flex-start",
-  },
-  popularHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  popularName: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "900",
     color: "#111827",
-    flex: 1,
     textAlign: "left",
   },
-  popularCal: {
+  favoritesGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  favCard: {
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 14,
+    width: "31%",
+    alignItems: "flex-start",
+  },
+  favHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+  },
+  favName: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#111827",
+    flex: 1,
+  },
+  favCal: {
     fontSize: 12,
     fontWeight: "900",
-    color: "#10B981",
+    color: "#3B82F6",
     marginTop: 6,
   },
-  popularMacros: {
-    fontSize: 8,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 2,
+  recentList: {
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  recentRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 8,
+  },
+  recentText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  recentCal: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#6B7280",
   },
   foodRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 18,
-    padding: 14,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 8,
   },
-  foodInfo: {
+  foodLeft: {
     flex: 1,
     alignItems: "flex-start",
-  },
-  foodNameWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginRight: 8,
   },
   foodName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "900",
     color: "#111827",
   },
-  badgeVerified: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E6F4F1",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  badgePending: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  badgeText: {
-    fontSize: 6,
-    fontWeight: "900",
-    color: "#14B8A6",
-    marginLeft: 2,
-  },
-  badgeTextPending: {
-    fontSize: 6,
-    fontWeight: "900",
-    color: "#9CA3AF",
-  },
-  foodCat: {
-    fontSize: 9,
-    color: "#9CA3AF",
-    fontWeight: "bold",
+  foodMeta: {
+    fontSize: 10,
+    color: "#6B7280",
+    fontWeight: "700",
     marginTop: 4,
   },
   foodRight: {
     alignItems: "flex-end",
   },
-  foodCalories: {
-    fontSize: 12,
+  foodCal: {
+    fontSize: 13,
     fontWeight: "900",
     color: "#111827",
   },
-  foodMacrosRecap: {
-    fontSize: 8,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 2,
+  foodMacros: {
+    fontSize: 9,
+    color: "#6B7280",
+    fontWeight: "700",
+    marginTop: 4,
   },
   emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 24,
-    padding: 30,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    paddingVertical: 36,
     alignItems: "center",
-    justifyContent: "center",
+    marginTop: 16,
   },
   emptyText: {
-    fontSize: 11,
+    fontSize: 13,
     color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 8,
-  },
-  emptyAddBtn: {
-    backgroundColor: "#111827",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginTop: 12,
-  },
-  emptyAddText: {
-    color: "#FFFFFF",
-    fontSize: 8,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   modalOverlay: {
     flex: 1,
@@ -613,151 +727,206 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     padding: 24,
-    paddingBottom: 40,
-    maxHeight: "85%",
+    paddingBottom: Platform.OS === "ios" ? 48 : 36,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    paddingBottom: 16,
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "900",
     color: "#111827",
-    textAlign: "left",
   },
-  modalSub: {
-    fontSize: 10,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-    marginTop: 4,
-    textAlign: "left",
+  modalSubtitle: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "700",
+    marginTop: 2,
   },
-  closeButton: {
-    padding: 6,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 99,
-  },
-  closeButtonText: {
-    fontSize: 14,
-    color: "#4B5563",
-    fontWeight: "bold",
-  },
-  macroBox: {
-    flexDirection: "row",
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 24,
-    padding: 20,
+  modalCloseBtn: {
+    height: 36,
+    width: 36,
+    borderRadius: 18,
+    backgroundColor: "#F4F4F5",
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center",
   },
-  calWrapper: {
+  unitScroll: {
+    marginVertical: 4,
+  },
+  unitScrollContent: {
+    paddingVertical: 4,
+  },
+  unitCapsule: {
+    backgroundColor: "#F4F4F5",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  unitCapsuleActive: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+  },
+  unitText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  unitTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 12,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    alignSelf: "center",
+    width: "60%",
+  },
+  stepperButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quantityInput: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#111827",
+    paddingVertical: 6,
+  },
+  modalMacroCard: {
+    flexDirection: "row",
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalCalWrapper: {
     width: "40%",
     borderRightWidth: 1,
     borderRightColor: "#E5E7EB",
     alignItems: "center",
+    paddingRight: 10,
   },
-  calVal: {
+  modalCalVal: {
     fontSize: 28,
     fontWeight: "900",
     color: "#111827",
   },
-  calLabel: {
-    fontSize: 8,
+  modalCalLabel: {
+    fontSize: 9,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
+    marginTop: 1,
+  },
+  modalWeightLabel: {
+    fontSize: 9,
+    color: "#9CA3AF",
+    fontWeight: "700",
     marginTop: 2,
   },
-  macrosSplit: {
+  modalMacrosSplit: {
     flex: 1,
-    paddingLeft: 20,
+    paddingLeft: 16,
   },
   splitRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginVertical: 4,
+    marginVertical: 1.5,
   },
   splitLabel: {
     fontSize: 11,
-    fontWeight: "bold",
-    color: "#4B5563",
+    fontWeight: "700",
+    color: "#6B7280",
   },
   splitVal: {
     fontSize: 11,
     fontWeight: "900",
     color: "#111827",
   },
-  microsSection: {
-    marginBottom: 24,
-    alignItems: "flex-start",
+  microsDrawer: {
+    backgroundColor: "#F4F4F5",
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 16,
   },
-  microsTitle: {
-    fontSize: 11,
+  fieldLabel: {
+    fontSize: 9,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
-    marginBottom: 12,
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   microsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
   },
   microCol: {
-    width: "18%",
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingVertical: 8,
+    width: "30%",
     alignItems: "center",
   },
   microVal: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
     color: "#111827",
   },
   microLabel: {
-    fontSize: 7,
-    fontWeight: "900",
-    color: "#9CA3AF",
-    marginTop: 2,
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginTop: 1,
   },
-  logPrompt: {
+  logLabel: {
     fontSize: 10,
     fontWeight: "900",
-    color: "#9CA3AF",
+    color: "#6B7280",
     textTransform: "uppercase",
-    marginBottom: 10,
+    marginBottom: 8,
     textAlign: "left",
   },
-  logButtonsRow: {
+  logGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   logBtn: {
     flex: 1,
-    backgroundColor: "#111827",
+    backgroundColor: "#3B82F6",
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     alignItems: "center",
     marginHorizontal: 3,
   },
   logBtnText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
   },
 });

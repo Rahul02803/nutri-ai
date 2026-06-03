@@ -201,3 +201,50 @@ create policy "Admin operations on indian foods" on public.indian_foods for all 
 create index if not exists indian_foods_name_fuzzy_idx on public.indian_foods (name);
 create index if not exists indian_foods_category_idx on public.indian_foods (category);
 
+-- ====================================================
+-- AI PERSONALIZED COACHING TABLES
+-- ====================================================
+
+-- 11. USER GOALS (LONG-TERM)
+create table if not exists public.user_goals (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  baseline_weight numeric not null,
+  target_weight numeric not null,
+  weekly_weight_change_goal numeric not null, -- e.g. -0.5 for half kg loss
+  activity_multiplier numeric not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.user_goals enable row level security;
+create policy "Users own goals" on public.user_goals for all using (auth.uid() = user_id);
+
+-- 12. DAILY AI INSIGHTS
+create table if not exists public.daily_ai_insights (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  logged_date date default current_date not null,
+  insight_text text not null,
+  is_positive boolean not null default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint unique_daily_insight unique(user_id, logged_date)
+);
+
+alter table public.daily_ai_insights enable row level security;
+create policy "Users own daily insights" on public.daily_ai_insights for all using (auth.uid() = user_id);
+
+-- 13. WEEKLY ADJUSTMENTS
+create table if not exists public.weekly_adjustments (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users(id) on delete cascade not null,
+  week_start_date date not null,
+  previous_calories integer not null,
+  new_calories integer not null,
+  previous_protein integer not null,
+  new_protein integer not null,
+  reasoning text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.weekly_adjustments enable row level security;
+create policy "Users own weekly adjustments" on public.weekly_adjustments for all using (auth.uid() = user_id);

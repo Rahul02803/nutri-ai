@@ -155,11 +155,67 @@ Give highly personalized, encouraging advice. Primarily suggest Indian home-cook
   };
 
   try {
-    const data = await callGeminiApi("gemini-2.5-flash", payload);
+    const data = await callGeminiApi("gemini-1.5-pro", payload);
     const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     return replyText || "My apologies, I am having trouble connecting to my coaching algorithms right now. Try again shortly!";
   } catch (e) {
     console.error("Gemini Coach response failure:", e);
     return `Hey ${user.name}! To support your ${goal} target, ensure you hit your ${targetPro}g Protein goal. Consuming Indian foods like roasted chana (20g protein/100g) or low-fat paneer (18g protein/100g) is perfect right now! 🥦`;
   }
+}
+
+/**
+ * 3. Daily AI Coaching Insight
+ * Analyzes today's meal logs against targets to generate a 2-sentence coaching tip.
+ */
+export async function generateDailyInsightPrompt(
+  user: UserProfile,
+  meals: Meal[]
+): Promise<{ insight: string; isPositive: boolean }> {
+  const targetCal = user.target_calories || 2000;
+  const targetPro = user.target_protein || 140;
+  
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayMeals = meals.filter((m) => m.created_at.startsWith(todayStr));
+  const loggedCal = todayMeals.reduce((sum, m) => sum + m.calories, 0);
+  const loggedPro = todayMeals.reduce((sum, m) => sum + m.protein, 0);
+
+  const systemInstruction = `You are a premium AI Nutrition Coach.
+User logged today: ${loggedCal}/${targetCal} kcal, ${loggedPro}/${targetPro}g protein.
+Provide a highly empathetic, concise 2-sentence coaching insight.
+Return strictly valid JSON:
+{
+  "insight": "Your 2 sentence message.",
+  "isPositive": true
+}`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: systemInstruction }]
+      }
+    ],
+    generationConfig: {
+      temperature: 0.4,
+      responseMimeType: "application/json"
+    }
+  };
+
+  let insight = `Great job tracking today! Let's keep pushing towards that ${targetPro}g protein goal.`;
+  let isPositive = true;
+
+  try {
+    const data = await callGeminiApi("gemini-1.5-pro", payload);
+    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (replyText) {
+      const parsed = JSON.parse(replyText);
+      insight = parsed.insight || insight;
+      isPositive = parsed.isPositive !== undefined ? parsed.isPositive : isPositive;
+    }
+  } catch (e) {
+    console.error("Gemini Daily Insight generation failed:", e);
+  }
+
+  return { insight, isPositive };
 }
