@@ -603,24 +603,7 @@ export const useStore = create<ZenlogState>()(
         await new Promise((resolve) => setTimeout(resolve, 800));
         set({ isSynced: true, lastSynced: new Date().toISOString() });
       },
-      user: {
-    id: "usr_guest",
-    email: "guest@zenlog.ai",
-    name: "Aarav Sharma",
-    age: 26,
-    gender: "male",
-    height: 178,
-    current_weight: 78.4,
-    target_weight: 72.0,
-    activity_level: "moderate",
-    goal: "cut",
-    diet_preference: "vegetarian",
-    steps_goal: 10000,
-    target_calories: 1850,
-    target_protein: 150,
-    target_carbs: 180,
-    target_fat: 58
-  },
+      user: null,
   meals: preloaded.meals,
   weightLogs: preloaded.weightLogs,
   predictions: [],

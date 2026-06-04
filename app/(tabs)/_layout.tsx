@@ -2,24 +2,21 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { 
   Home as LucideHome, 
-  Camera as LucideCamera, 
+  ChefHat as LucideChefHat, 
   BarChart2 as LucideBarChart2, 
-  User as LucideUser 
+  Settings as LucideSettings 
 } from "lucide-react-native";
 
 const Home = LucideHome as any;
-const Camera = LucideCamera as any;
+const ChefHat = LucideChefHat as any;
 const BarChart2 = LucideBarChart2 as any;
-const User = LucideUser as any;
-import { useStore } from "../../store/useStore";
+const Settings = LucideSettings as any;
 
 export default function TabLayout() {
-  const { isDarkMode } = useStore();
-
-  const activeColor = "#111827";
+  const activeColor = "#7C3AED"; // Purple accent
   const inactiveColor = "#9CA3AF";
-  const backgroundColor = "#FFFFFF";
-  const borderColor = "#E5E7EB";
+  const backgroundColor = "#111827"; // Dark mode tab bar
+  const borderColor = "#1F2937";
 
   return (
     <Tabs
@@ -31,48 +28,49 @@ export default function TabLayout() {
           backgroundColor: backgroundColor,
           borderTopColor: borderColor,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 10,
           shadowColor: "#000",
-          shadowOpacity: 0.02,
-          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowOffset: { width: 0, height: -4 },
           shadowRadius: 10,
-          elevation: 2,
+          elevation: 5,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: "900",
-          letterSpacing: -0.2,
+          letterSpacing: 0.2,
+          marginTop: 2,
         },
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, size }) => <Home size={20} color={color} />,
+          tabBarIcon: ({ color }) => <Home size={20} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="scan"
+        name="meals"
         options={{
-          title: "AI Scan",
-          tabBarIcon: ({ color, size }) => <Camera size={20} color={color} />,
+          title: "Log Meals",
+          tabBarIcon: ({ color }) => <ChefHat size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: "Progress",
-          tabBarIcon: ({ color, size }) => <BarChart2 size={20} color={color} />,
+          tabBarIcon: ({ color }) => <BarChart2 size={20} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="settings"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => <User size={20} color={color} />,
+          title: "Settings",
+          tabBarIcon: ({ color }) => <Settings size={20} color={color} />,
         }}
       />
     </Tabs>

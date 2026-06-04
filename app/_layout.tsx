@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "rea
 import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { supabase } from "../services/supabase";
 import { useStore } from "../store/useStore";
 
 // Error Boundary implementation to capture and prevent rendering crashes from showing white screens
@@ -56,101 +55,30 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 export default function RootLayout() {
-  const { setUser } = useStore();
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    // Fallback timeout to guarantee loading screen clears even if network/auth state request hangs
-    const timeoutId = setTimeout(() => {
-      console.warn("Auth check timed out. Dismissing loading screen.");
-      setIsInitializing(false);
-    }, 4000);
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        console.log(`[Auth Event] ${event} detected.`);
-        if (session) {
-          const authUser = session.user;
-          const email = authUser.email || "";
-          const name = authUser.user_metadata?.full_name || authUser.user_metadata?.name || email.split("@")[0];
-          const profilePicture = authUser.user_metadata?.avatar_url || "";
-
-          // Check if public profile exists
-          const { data: profile, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", authUser.id)
-            .maybeSingle();
-
-          if (error) throw error;
-
-          let activeProfile = profile;
-
-          if (!profile) {
-            const newProfile = {
-              id: authUser.id,
-              email,
-              name,
-              profile_picture: profilePicture,
-              last_login: new Date().toISOString(),
-            };
-
-            const { data: insertedProfile, error: insertError } = await supabase
-              .from("users")
-              .insert(newProfile)
-              .select()
-              .maybeSingle();
-
-            if (insertError) throw insertError;
-            activeProfile = insertedProfile || newProfile;
-          } else {
-            // Update last login
-            await supabase
-              .from("users")
-              .update({ last_login: new Date().toISOString() })
-              .eq("id", authUser.id);
-
-            activeProfile = {
-              ...profile,
-              last_login: new Date().toISOString(),
-            };
-          }
-
-          // Update local Zustand store
-          setUser(activeProfile);
-
-          // Invoke email sending logic
-          if (event === "SIGNED_IN") {
-            supabase.functions
-              .invoke("send-login-email", {
-                body: { name: activeProfile.name },
-              })
-              .catch((err) => console.error("Error triggering login email:", err));
-          }
-        } else {
-          setUser(null);
-        }
-      } catch (err) {
-        console.error("Auth state observer error, failing gracefully:", err);
-        setUser(null);
-      } finally {
-        setIsInitializing(false);
-        clearTimeout(timeoutId);
+    // Standard handler for Zustand persist hydration checking
+    const checkHydration = () => {
+      const hydrated = useStore.persist.hasHydrated();
+      if (hydrated) {
+        setIsHydrated(true);
+      } else {
+        const unsub = useStore.persist.onHydrate(() => {
+          setIsHydrated(true);
+          unsub();
+        });
       }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeoutId);
     };
+    checkHydration();
   }, []);
 
-  if (isInitializing) {
+  if (!isHydrated) {
     return (
       <View style={loadingStyles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={loadingStyles.loadingText}>ZenLog</Text>
-        <Text style={loadingStyles.loadingSub}>AI MEAL TRACKING</Text>
+        <ActivityIndicator size="large" color="#7C3AED" />
+        <Text style={loadingStyles.loadingText}>Zenlog AI</Text>
+        <Text style={loadingStyles.loadingSub}>AI INDIAN NUTRITION</Text>
       </View>
     );
   }
@@ -158,18 +86,16 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <StatusBar style="light" />
         <Stack
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: "#F8F8FA" }
+            contentStyle: { backgroundColor: "#0B0F14" }
           }}
         >
           <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)/login" />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="chat" options={{ presentation: "card" }} />
         </Stack>
       </SafeAreaProvider>
     </ErrorBoundary>
@@ -179,7 +105,7 @@ export default function RootLayout() {
 const boundaryStyles = StyleSheet.create({
   errorContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0B0F14",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -191,12 +117,12 @@ const boundaryStyles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: "#111827",
+    color: "#F9FAFB",
     marginBottom: 8,
   },
   errorSub: {
     fontSize: 14,
-    color: "#6B7280",
+    color: "#9CA3AF",
     fontWeight: "700",
     marginBottom: 16,
     textAlign: "center",
@@ -204,7 +130,7 @@ const boundaryStyles = StyleSheet.create({
   errorDetails: {
     fontSize: 11,
     color: "#EF4444",
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#111827",
     padding: 12,
     borderRadius: 12,
     marginBottom: 24,
@@ -212,13 +138,13 @@ const boundaryStyles = StyleSheet.create({
     width: "100%",
   },
   resetButton: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: "#7C3AED",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 20,
   },
   resetButtonText: {
-    color: "#FFFFFF",
+    color: "#F9FAFB",
     fontSize: 14,
     fontWeight: "900",
   },
@@ -227,14 +153,14 @@ const boundaryStyles = StyleSheet.create({
 const loadingStyles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0B0F14",
     alignItems: "center",
     justifyContent: "center",
   },
   loadingText: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#111827",
+    color: "#F9FAFB",
     marginTop: 16,
     letterSpacing: -1,
   },
@@ -246,4 +172,3 @@ const loadingStyles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 });
-

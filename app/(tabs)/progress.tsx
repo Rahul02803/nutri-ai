@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { useStore } from "../../store/useStore";
 import { 
   TrendingDown as LucideTrendingDown,
-  Scale as LucideScale
+  Scale as LucideScale,
+  Calendar as LucideCalendar
 } from "lucide-react-native";
 
 const TrendingDown = LucideTrendingDown as any;
 const Scale = LucideScale as any;
+const Calendar = LucideCalendar as any;
 
 export default function ProgressScreen() {
   const { user, weightLogs, meals, logWeight } = useStore();
@@ -15,7 +17,7 @@ export default function ProgressScreen() {
 
   if (!user) return null;
 
-  // Transformations weight calibrations
+  // Weight statistics
   const currentWeight = user.current_weight || 75;
   const initialWeight = weightLogs[0]?.weight || 75;
   const targetWeight = user.target_weight || 70;
@@ -59,14 +61,14 @@ export default function ProgressScreen() {
 
   const handleWeightCheckin = () => {
     const wt = parseFloat(weightInput);
-    if (isNaN(wt) || wt <= 0) {
-      Alert.alert("Input Error", "Please enter a valid weight check-in value.");
+    if (isNaN(wt) || wt <= 0 || wt > 300) {
+      Alert.alert("Input Error", "Please enter a valid weight in kg.");
       return;
     }
 
     logWeight(wt);
     setWeightInput("");
-    Alert.alert("Weight Logged", `Logged weight check-in: ${wt} kg! Goal target budgets adjusted.`);
+    Alert.alert("Weight Logged", `Logged weight: ${wt} kg!`);
   };
 
   return (
@@ -75,14 +77,14 @@ export default function ProgressScreen() {
         
         {/* Brand Header */}
         <View style={styles.header}>
-          <Text style={styles.brandTitle}>Progress</Text>
-          <Text style={styles.headerSub}>TARGETS & LOGS</Text>
+          <Text style={styles.brandTitle}>Progress Trends</Text>
+          <Text style={styles.headerSub}>ANALYTICS & WEIGHT CALIBRATIONS</Text>
         </View>
 
-        {/* 1. Weight Logging Check-In Card (Action 1: Log Weight - Max 3 Actions per screen) */}
-        <View style={styles.grayCard}>
-          <Text style={styles.fieldLabel}>Weight Check-In</Text>
-          <Text style={styles.cardDesc}>Log current weight to calibrate calorie budgets.</Text>
+        {/* Weight Logging Check-In Card */}
+        <View style={styles.darkCard}>
+          <Text style={styles.fieldLabel}>WEIGHT CHECK-IN</Text>
+          <Text style={styles.cardDesc}>Update your current weight to recalculate macros.</Text>
           
           <View style={styles.logRow}>
             <TextInput
@@ -90,7 +92,7 @@ export default function ProgressScreen() {
               value={weightInput}
               onChangeText={setWeightInput}
               placeholder={`Current: ${currentWeight} kg`}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#6B7280"
               keyboardType="numeric"
             />
             <TouchableOpacity 
@@ -103,9 +105,9 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* 2. Transformation Weight Specs Card */}
-        <View style={styles.grayCard}>
-          <Text style={styles.fieldLabel}>Weight Transformation</Text>
+        {/* Transformation Weight Specs Card */}
+        <View style={styles.darkCard}>
+          <Text style={styles.fieldLabel}>WEIGHT CALIBRATION</Text>
           
           <View style={styles.specsGrid}>
             <View style={styles.specCol}>
@@ -123,50 +125,61 @@ export default function ProgressScreen() {
           </View>
 
           <View style={styles.progressTrack}>
-            <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
+            <View style={[styles.progressBar, { width: `${progressPercent}%`, backgroundColor: "#7C3AED" }]} />
+          </View>
+          <View style={styles.progressLabels}>
+            <Text style={styles.progressText}>{progressPercent}% of target achieved</Text>
           </View>
 
           <View style={styles.deltaRow}>
-            <TrendingDown size={14} color="#3B82F6" style={{ marginRight: 6 }} />
+            <TrendingDown size={14} color="#7C3AED" style={{ marginRight: 6 }} />
             <Text style={styles.deltaText}>
-              Overall weight shift: <Text style={{ fontWeight: "900", color: "#111827" }}>{weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg</Text>
+              Overall weight shift: <Text style={{ fontWeight: "900", color: "#F9FAFB" }}>{weightDelta > 0 ? `+${weightDelta}` : weightDelta} kg</Text>
             </Text>
           </View>
         </View>
 
-        {/* 3. Weight Trends visual timeline */}
-        <View style={styles.grayCard}>
-          <Text style={styles.fieldLabel}>Weight Chart</Text>
+        {/* Weight Trends visual timeline */}
+        <View style={styles.darkCard}>
+          <Text style={styles.fieldLabel}>WEIGHT GRAPH HISTORY</Text>
           
-          <View style={styles.chartContainer}>
-            {weightLogs.slice(-5).map((log, idx) => {
-              const baseWt = targetWeight - 2;
-              const maxWt = initialWeight + 2;
-              const htPercent = Math.max(15, Math.round(((log.weight - baseWt) / (maxWt - baseWt)) * 100));
-              
-              return (
-                <View key={log.id} style={styles.chartCol}>
-                  <View style={styles.chartTrack}>
-                    <View style={[styles.chartBar, { height: `${htPercent}%` }]} />
+          {weightLogs.length === 0 ? (
+            <View style={styles.emptyChart}>
+              <Text style={styles.emptyChartText}>No weight logs found.</Text>
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              {weightLogs.slice(-5).map((log) => {
+                const baseWt = Math.max(10, targetWeight - 5);
+                const maxWt = initialWeight + 5;
+                const htPercent = Math.max(20, Math.round(((log.weight - baseWt) / (maxWt - baseWt)) * 100));
+                
+                return (
+                  <View key={log.id} style={styles.chartCol}>
+                    <View style={styles.chartTrack}>
+                      <View style={[styles.chartBar, { height: `${htPercent}%` }]} />
+                    </View>
+                    <Text style={styles.chartLabel}>{log.weight}kg</Text>
+                    <Text style={styles.chartDate}>
+                      {new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </Text>
                   </View>
-                  <Text style={styles.chartLabel}>{log.weight}kg</Text>
-                  <Text style={styles.chartDate}>{new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Text>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
-        {/* 4. Calorie Adherence Progress tracker */}
-        <View style={styles.grayCard}>
-          <Text style={styles.fieldLabel}>Calorie Adherence (Target: {user.target_calories} kcal)</Text>
+        {/* Calorie Adherence Progress tracker */}
+        <View style={styles.darkCard}>
+          <Text style={styles.fieldLabel}>CALORIE ADHERENCE (TARGET: {user.target_calories} KCAL)</Text>
           <View style={styles.adherenceList}>
             {adherenceList.map((day, idx) => (
               <View key={idx} style={styles.adherenceRow}>
                 <Text style={styles.adherenceLabel}>{day.label}</Text>
                 <View style={styles.adherenceTrackWrapper}>
                   <View style={styles.adherenceTrack}>
-                    <View style={[styles.adherenceBar, { width: `${day.calRatio * 100}%` }]} />
+                    <View style={[styles.adherenceBar, { width: `${day.calRatio * 100}%`, backgroundColor: "#7C3AED" }]} />
                   </View>
                   <Text style={styles.adherenceValue}>{day.calories} kcal</Text>
                 </View>
@@ -175,16 +188,16 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* 5. Protein Adherence tracker */}
-        <View style={styles.grayCard}>
-          <Text style={styles.fieldLabel}>Protein Adherence (Target: {user.target_protein}g)</Text>
+        {/* Protein Adherence tracker */}
+        <View style={styles.darkCard}>
+          <Text style={styles.fieldLabel}>PROTEIN ADHERENCE (TARGET: {user.target_protein}G)</Text>
           <View style={styles.adherenceList}>
             {adherenceList.map((day, idx) => (
               <View key={idx} style={styles.adherenceRow}>
                 <Text style={styles.adherenceLabel}>{day.label}</Text>
                 <View style={styles.adherenceTrackWrapper}>
                   <View style={styles.adherenceTrack}>
-                    <View style={[styles.adherenceBar, { width: `${day.proRatio * 100}%` }]} />
+                    <View style={[styles.adherenceBar, { width: `${day.proRatio * 100}%`, backgroundColor: "#22C55E" }]} />
                   </View>
                   <Text style={styles.adherenceValue}>{day.protein}g</Text>
                 </View>
@@ -201,55 +214,54 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0B0F14",
   },
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0B0F14",
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 40,
   },
   header: {
     alignItems: "flex-start",
-    marginBottom: 28,
+    marginBottom: 24,
   },
   brandTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: "900",
-    color: "#111827",
+    color: "#F9FAFB",
     letterSpacing: -1,
   },
   headerSub: {
-    fontSize: 10,
-    color: "#6B7280",
+    fontSize: 9,
+    color: "#7C3AED",
     fontWeight: "900",
-    marginTop: 2,
-    letterSpacing: 1.5,
+    marginTop: 4,
+    letterSpacing: 1.2,
   },
-  grayCard: {
-    backgroundColor: "#F4F4F5",
-    borderRadius: 20, // Strict 20px rounded corners
-    padding: 20,
+  darkCard: {
+    backgroundColor: "#111827",
+    borderWidth: 1.5,
+    borderColor: "#1F2937",
+    borderRadius: 20,
+    padding: 18,
     marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
-    color: "#6B7280",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: "#9CA3AF",
+    letterSpacing: 1,
     marginBottom: 6,
-    textAlign: "left",
   },
   cardDesc: {
     fontSize: 12,
     color: "#9CA3AF",
     fontWeight: "700",
     marginBottom: 14,
-    textAlign: "left",
   },
   logRow: {
     flexDirection: "row",
@@ -257,27 +269,29 @@ const styles = StyleSheet.create({
   },
   weightInput: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+    backgroundColor: "#0B0F14",
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    borderRadius: 12,
     paddingHorizontal: 16,
-    height: 48,
+    height: 46,
     fontSize: 14,
     fontWeight: "800",
-    color: "#111827",
+    color: "#F9FAFB",
     marginRight: 10,
   },
   logBtn: {
-    width: 72,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#3B82F6", // Unified Accent Color
+    width: 68,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
   },
   logBtnText: {
     fontSize: 13,
     fontWeight: "900",
-    color: "#FFFFFF",
+    color: "#F9FAFB",
   },
   specsGrid: {
     flexDirection: "row",
@@ -290,7 +304,7 @@ const styles = StyleSheet.create({
   specVal: {
     fontSize: 18,
     fontWeight: "900",
-    color: "#111827",
+    color: "#F9FAFB",
   },
   specLabel: {
     fontSize: 10,
@@ -300,32 +314,45 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressTrack: {
-    height: 4,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: "#0B0F14",
+    borderRadius: 3,
     overflow: "hidden",
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 6,
   },
   progressBar: {
     height: "100%",
-    backgroundColor: "#3B82F6",
-    borderRadius: 2,
+    borderRadius: 3,
+  },
+  progressLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  progressText: {
+    fontSize: 10,
+    color: "#9CA3AF",
+    fontWeight: "700",
   },
   deltaRow: {
     flexDirection: "row",
     alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#1F2937",
+    paddingTop: 12,
+    marginTop: 4,
   },
   deltaText: {
     fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "800",
+    color: "#9CA3AF",
+    fontWeight: "700",
   },
   chartContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "flex-end",
-    height: 140,
+    height: 150,
     paddingTop: 12,
   },
   chartCol: {
@@ -333,28 +360,38 @@ const styles = StyleSheet.create({
     width: "18%",
   },
   chartTrack: {
-    height: 80,
-    width: 6,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 3,
+    height: 90,
+    width: 8,
+    backgroundColor: "#0B0F14",
+    borderRadius: 4,
     justifyContent: "flex-end",
     marginBottom: 6,
   },
   chartBar: {
     width: "100%",
-    backgroundColor: "#3B82F6",
-    borderRadius: 3,
+    backgroundColor: "#7C3AED",
+    borderRadius: 4,
   },
   chartLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "900",
-    color: "#111827",
+    color: "#F9FAFB",
   },
   chartDate: {
-    fontSize: 7,
+    fontSize: 8,
     color: "#9CA3AF",
-    fontWeight: "900",
+    fontWeight: "800",
     marginTop: 4,
+  },
+  emptyChart: {
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyChartText: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "700",
   },
   adherenceList: {
     marginTop: 8,
@@ -365,9 +402,8 @@ const styles = StyleSheet.create({
   adherenceLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#111827",
+    color: "#F9FAFB",
     marginBottom: 6,
-    textAlign: "left",
   },
   adherenceTrackWrapper: {
     flexDirection: "row",
@@ -376,20 +412,19 @@ const styles = StyleSheet.create({
   },
   adherenceTrack: {
     flex: 1,
-    height: 4,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: "#0B0F14",
+    borderRadius: 3,
     overflow: "hidden",
     marginRight: 12,
   },
   adherenceBar: {
     height: "100%",
-    backgroundColor: "#3B82F6",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   adherenceValue: {
     fontSize: 11,
     fontWeight: "900",
-    color: "#6B7280",
+    color: "#9CA3AF",
   },
 });
