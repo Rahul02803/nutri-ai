@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -19,25 +19,53 @@ export default function WelcomePage() {
 
   const hydrated = useStore.persist.hasHydrated();
 
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-  });
-
-  // Handle Google Auth Response
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { authentication } = response;
-      const accessToken = authentication?.accessToken;
-      if (accessToken) {
-        fetchGoogleUserInfo(accessToken);
+  const getParamsFromUrl = (url: string) => {
+    const hashIndex = url.indexOf("#");
+    if (hashIndex === -1) return {};
+    const hash = url.substring(hashIndex + 1);
+    const params: Record<string, string> = {};
+    hash.split("&").forEach((part) => {
+      const [key, val] = part.split("=");
+      if (key && val) {
+        params[key] = decodeURIComponent(val);
       }
+    });
+    return params;
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsNavigating(true);
+    try {
+      const redirectUri = makeRedirectUri({ scheme: "zenlog" });
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `response_type=token` +
+        `&client_id=${clientId}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&scope=openid%20profile%20email`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      
+      if (result.type === "success" && result.url) {
+        const params = getParamsFromUrl(result.url);
+        const accessToken = params.access_token;
+
+        if (accessToken) {
+          await fetchGoogleUserInfo(accessToken);
+        } else {
+          throw new Error("Failed to receive authentication tokens from Google.");
+        }
+      }
+    } catch (e: any) {
+      console.error("Google login error:", e);
+      Alert.alert("Google Log In Failed", e.message || "Could not sign in with Google. Please try again or continue as guest.");
+    } finally {
+      setIsNavigating(false);
     }
-  }, [response]);
+  };
 
   const fetchGoogleUserInfo = async (token: string) => {
-    setIsNavigating(true);
     try {
       const res = await fetch("https://www.googleapis.com/userinfo/v2/me", {
         headers: { Authorization: `Bearer ${token}` },
@@ -56,8 +84,6 @@ export default function WelcomePage() {
     } catch (e) {
       console.error("Failed to fetch Google user info:", e);
       Alert.alert("Authentication Error", "Failed to retrieve user details from Google.");
-    } finally {
-      setIsNavigating(false);
     }
   };
 
@@ -173,10 +199,10 @@ export default function WelcomePage() {
           {/* Action buttons */}
           <View style={styles.footer}>
             <TouchableOpacity
-              style={[styles.googleButton, (isNavigating || !request) && styles.buttonDisabled]}
-              onPress={() => promptAsync()}
+              style={[styles.googleButton, isNavigating && styles.buttonDisabled]}
+              onPress={handleGoogleLogin}
               activeOpacity={0.9}
-              disabled={isNavigating || !request}
+              disabled={isNavigating}
             >
               {isNavigating ? (
                 <ActivityIndicator size="small" color="#F9FAFB" />
