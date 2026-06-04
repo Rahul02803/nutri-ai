@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingVi
 import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
+
+WebBrowser.maybeCompleteAuthSession();
 
 type GoalType = "cut" | "maintain" | "bulk";
 
@@ -14,6 +18,48 @@ export default function WelcomePage() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const hydrated = useStore.persist.hasHydrated();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+  });
+
+  // Handle Google Auth Response
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { authentication } = response;
+      const accessToken = authentication?.accessToken;
+      if (accessToken) {
+        fetchGoogleUserInfo(accessToken);
+      }
+    }
+  }, [response]);
+
+  const fetchGoogleUserInfo = async (token: string) => {
+    setIsNavigating(true);
+    try {
+      const res = await fetch("https://www.googleapis.com/userinfo/v2/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userInfo = await res.json();
+      if (userInfo && userInfo.id) {
+        const profile = {
+          id: `usr_${userInfo.id}`,
+          email: userInfo.email || `google_${userInfo.id}@gmail.com`,
+          name: userInfo.name || "Google User",
+          goal: selectedGoal,
+        };
+        login(profile);
+        router.replace("/onboarding");
+      }
+    } catch (e) {
+      console.error("Failed to fetch Google user info:", e);
+      Alert.alert("Authentication Error", "Failed to retrieve user details from Google.");
+    } finally {
+      setIsNavigating(false);
+    }
+  };
 
   // Automatic redirect if user already has completed onboarding
   useEffect(() => {
@@ -124,19 +170,28 @@ export default function WelcomePage() {
             </TouchableOpacity>
           </View>
 
-          {/* Action button */}
+          {/* Action buttons */}
           <View style={styles.footer}>
             <TouchableOpacity
-              style={[styles.primaryButton, isNavigating && styles.buttonDisabled]}
-              onPress={handleContinue}
+              style={[styles.googleButton, (isNavigating || !request) && styles.buttonDisabled]}
+              onPress={() => promptAsync()}
               activeOpacity={0.9}
-              disabled={isNavigating}
+              disabled={isNavigating || !request}
             >
               {isNavigating ? (
                 <ActivityIndicator size="small" color="#F9FAFB" />
               ) : (
-                <Text style={styles.primaryButtonText}>Continue</Text>
+                <Text style={styles.googleButtonText}>🌐 Continue with Google</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.guestButton, isNavigating && styles.buttonDisabled]}
+              onPress={handleContinue}
+              activeOpacity={0.9}
+              disabled={isNavigating}
+            >
+              <Text style={styles.guestButtonText}>👤 Continue as Guest</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -255,7 +310,7 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 32,
   },
-  primaryButton: {
+  googleButton: {
     backgroundColor: "#7C3AED", // Purple accent
     paddingVertical: 16,
     borderRadius: 20,
@@ -267,8 +322,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  primaryButtonText: {
+  googleButtonText: {
     color: "#F9FAFB",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  guestButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: "#1F2937",
+    paddingVertical: 16,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  guestButtonText: {
+    color: "#9CA3AF",
     fontSize: 15,
     fontWeight: "900",
   },
