@@ -13,12 +13,21 @@ export default function WelcomePage() {
   const [selectedGoal, setSelectedGoal] = useState<GoalType>("maintain");
   const [isNavigating, setIsNavigating] = useState(false);
 
+  const hydrated = useStore.persist.hasHydrated();
+
   // Automatic redirect if user already has completed onboarding
   useEffect(() => {
-    if (user && user.goal) {
-      router.replace("/(tabs)/dashboard");
+    if (hydrated && user && user.goal) {
+      const timeout = setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 100);
+      return () => clearTimeout(timeout);
     }
-  }, [user]);
+  }, [user, hydrated]);
+
+  if (!hydrated) {
+    return null;
+  }
 
   const handleContinue = () => {
     if (!name.trim()) {
@@ -39,7 +48,7 @@ export default function WelcomePage() {
       login(guestProfile);
 
       // Route to detailed calibration onboarding
-      router.push("/onboarding");
+      router.replace("/onboarding");
     } catch (error) {
       console.error("Failed to setup local guest profile:", error);
       Alert.alert("Error", "Could not create user profile. Please try again.");

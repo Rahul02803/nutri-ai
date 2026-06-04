@@ -667,9 +667,6 @@ export const useStore = create<ZenlogState>()(
   login: (user) => set({ user }),
 
   logout: () => {
-    const { supabase } = require("../services/supabase");
-    supabase.auth.signOut().catch(console.error);
-
     set({
       user: null,
       meals: [],
