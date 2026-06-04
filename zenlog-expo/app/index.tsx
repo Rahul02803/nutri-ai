@@ -1,126 +1,137 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator } from "react-native";
-import { useRouter, useNavigation } from "expo-router";
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
 import { useStore } from "../store/useStore";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+type GoalType = "cut" | "maintain" | "bulk";
 
 export default function WelcomePage() {
   const router = useRouter();
-  const navigation = useNavigation();
-  const { user } = useStore();
+  const { user, login } = useStore();
+  const [name, setName] = useState("");
+  const [selectedGoal, setSelectedGoal] = useState<GoalType>("maintain");
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // Automatic redirect if already logged in
+  // Automatic redirect if user already has completed onboarding
   useEffect(() => {
-    console.log("[WelcomePage] Loaded. User state:", user ? `Logged in (${user.email})` : "Guest/Logged out");
-    if (user) {
-      // Clear initial guest state if they logged out previously
-      if (user.id === "usr_guest" && !user.goal) {
-        console.log("[WelcomePage] Guest user found but onboarding incomplete.");
-      } else {
-        const target = user.goal ? "/(tabs)" : "/onboarding";
-        console.log(`[WelcomePage] Automatic redirect triggered. Target route: ${target}`);
-        try {
-          const state = navigation.getState();
-          console.log("[WelcomePage] Current navigation stack:", state?.routes?.map(r => r.name));
-        } catch (e) {
-          console.log("[WelcomePage] Could not retrieve stack state:", e);
-        }
-        
-        if (user.goal) {
-          router.replace("/(tabs)");
-        } else {
-          router.replace("/onboarding");
-        }
-      }
+    if (user && user.goal) {
+      router.replace("/(tabs)/dashboard");
     }
   }, [user]);
 
-  const navigateToLogin = () => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    console.log("[WelcomePage] Navigation action initiated for Get Started / Sign In.");
-    console.log("[WelcomePage] Target route name: /login");
-    
-    try {
-      const state = navigation.getState();
-      console.log("[WelcomePage] Current stack before push:", state?.routes?.map(r => r.name));
-    } catch (e) {
-      console.log("[WelcomePage] Could not retrieve stack state:", e);
+  const handleContinue = () => {
+    if (!name.trim()) {
+      Alert.alert("Name Required", "Please tell us your name to personalize your experience.");
+      return;
     }
+    setIsNavigating(true);
 
     try {
-      router.push("/login");
-      console.log("[WelcomePage] Navigation push success.");
-    } catch (err) {
-      console.error("[WelcomePage] Navigation push failed:", err);
+      const guestProfile = {
+        id: "usr_guest",
+        email: "guest@zenlog.ai",
+        name: name.trim(),
+        goal: selectedGoal,
+      };
+
+      // Set guest profile in Zustand store
+      login(guestProfile);
+
+      // Route to detailed calibration onboarding
+      router.push("/onboarding");
+    } catch (error) {
+      console.error("Failed to setup local guest profile:", error);
+      Alert.alert("Error", "Could not create user profile. Please try again.");
+    } finally {
       setIsNavigating(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        
-        {/* Brand Header */}
-        <View style={styles.header}>
-          <Text style={styles.brandTitle}>ZenLog</Text>
-          <Text style={styles.brandTagline}>AI MEAL TRACKING</Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* Header branding */}
+          <View style={styles.header}>
+            <Text style={styles.brandTitle}>Zenlog AI</Text>
+            <Text style={styles.brandTagline}>YOUR NATIVE INDIAN HEALTH COMPANION</Text>
+          </View>
 
-        {/* Calm Features Showcase (Soft gray card, 20px rounded) */}
-        <View style={styles.previewContainer}>
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Setup Card Form */}
+          <View style={styles.card}>
+            <Text style={styles.label}>WHAT IS YOUR NAME?</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Aarav Sharma"
+              placeholderTextColor="#6B7280"
+              value={name}
+              onChangeText={setName}
+              maxLength={30}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+
+            <Text style={[styles.label, { marginTop: 24 }]}>CHOOSE YOUR FITNESS GOAL</Text>
             
-            <View style={styles.mockupSlide}>
-              <Text style={styles.slideHeader}>📸 Camera Meal Scan</Text>
-              <Text style={styles.slideText}>
-                Snap food photos to estimate calories, macros, and micro-nutrient profiles instantly.
-              </Text>
-            </View>
+            {/* Goal selection cards */}
+            <TouchableOpacity
+              style={[styles.goalOption, selectedGoal === "cut" && styles.goalOptionSelected]}
+              onPress={() => setSelectedGoal("cut")}
+              activeOpacity={0.8}
+            >
+              <View style={styles.goalInfo}>
+                <Text style={styles.goalTitle}>🔥 Lose Weight</Text>
+                <Text style={styles.goalDesc}>Burn fat, increase cardiovascular fitness, & get lean.</Text>
+              </View>
+              <View style={[styles.radio, selectedGoal === "cut" && styles.radioChecked]} />
+            </TouchableOpacity>
 
-            <View style={styles.mockupSlide}>
-              <Text style={styles.slideHeader}>📊 Portion Recalculation</Text>
-              <Text style={styles.slideText}>
-                Slide weights dynamically to scale macros instantly with zero server lag.
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.goalOption, selectedGoal === "maintain" && styles.goalOptionSelected]}
+              onPress={() => setSelectedGoal("maintain")}
+              activeOpacity={0.8}
+            >
+              <View style={styles.goalInfo}>
+                <Text style={styles.goalTitle}>⚖️ Maintain Weight</Text>
+                <Text style={styles.goalDesc}>Balance energy, improve strength, & establish healthy habits.</Text>
+              </View>
+              <View style={[styles.radio, selectedGoal === "maintain" && styles.radioChecked]} />
+            </TouchableOpacity>
 
-            <View style={styles.mockupSlide}>
-              <Text style={styles.slideHeader}>📈 Goal Auto-Calibration</Text>
-              <Text style={styles.slideText}>
-                ZenLog tracks weight shifts on weekly check-ins and trims or adds calories automatically.
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={[styles.goalOption, selectedGoal === "bulk" && styles.goalOptionSelected]}
+              onPress={() => setSelectedGoal("bulk")}
+              activeOpacity={0.8}
+            >
+              <View style={styles.goalInfo}>
+                <Text style={styles.goalTitle}>💪 Gain Muscle</Text>
+                <Text style={styles.goalDesc}>Increase strength, scale protein intake, & gain size.</Text>
+              </View>
+              <View style={[styles.radio, selectedGoal === "bulk" && styles.radioChecked]} />
+            </TouchableOpacity>
+          </View>
 
-          </ScrollView>
-        </View>
-
-        {/* Footer Actions (Action 1: Get Started primary electric blue, Action 2: Sign In text link) */}
-        <View style={styles.footer}>
-          <TouchableOpacity 
-            style={[styles.primaryButton, isNavigating && styles.buttonDisabled]} 
-            onPress={navigateToLogin}
-            activeOpacity={0.9}
-            disabled={isNavigating}
-          >
-            {isNavigating ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.primaryButtonText}>Get Started</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.secondaryButton} 
-            onPress={navigateToLogin}
-            activeOpacity={0.8}
-            disabled={isNavigating}
-          >
-            <Text style={styles.secondaryButtonText}>Already have an account? Sign In</Text>
-          </TouchableOpacity>
-        </View>
-
-      </View>
+          {/* Action button */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.primaryButton, isNavigating && styles.buttonDisabled]}
+              onPress={handleContinue}
+              activeOpacity={0.9}
+              disabled={isNavigating}
+            >
+              {isNavigating ? (
+                <ActivityIndicator size="small" color="#F9FAFB" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Continue</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -128,94 +139,129 @@ export default function WelcomePage() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#0B0F14",
   },
-  container: {
+  keyboardView: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: 32,
     paddingBottom: 24,
     justifyContent: "space-between",
   },
   header: {
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 20,
+    marginBottom: 32,
   },
   brandTitle: {
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: "900",
-    color: "#111827",
-    letterSpacing: -1,
+    color: "#F9FAFB",
+    letterSpacing: -1.5,
   },
   brandTagline: {
     fontSize: 10,
-    color: "#6B7280",
+    color: "#7C3AED", // Purple accent
     fontWeight: "900",
-    marginTop: 4,
+    marginTop: 6,
     letterSpacing: 1.5,
   },
-  previewContainer: {
-    flex: 1,
-    backgroundColor: "#F4F4F5",
-    borderRadius: 20, // Strict 20px rounded corners
-    overflow: "hidden",
-    padding: 16,
-    marginVertical: 32,
-  },
-  scrollContent: {
-    paddingVertical: 8,
-  },
-  mockupSlide: {
-    padding: 18,
-    borderRadius: 16,
+  card: {
+    backgroundColor: "#111827", // Card background
+    borderRadius: 20,
+    padding: 20,
     width: "100%",
-    marginBottom: 12,
-    alignItems: "flex-start",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  slideHeader: {
-    fontSize: 13,
+  label: {
+    fontSize: 11,
+    color: "#9CA3AF",
     fontWeight: "900",
-    color: "#111827",
-    marginBottom: 6,
+    letterSpacing: 1.2,
+    marginBottom: 8,
   },
-  slideText: {
-    fontSize: 12,
-    color: "#6B7280",
-    lineHeight: 16,
+  textInput: {
+    backgroundColor: "#0B0F14",
+    borderWidth: 1,
+    borderColor: "#1F2937",
+    color: "#F9FAFB",
+    borderRadius: 14,
+    height: 52,
+    paddingHorizontal: 16,
+    fontSize: 15,
     fontWeight: "700",
-    textAlign: "left",
+  },
+  goalOption: {
+    backgroundColor: "#0B0F14",
+    borderWidth: 1.5,
+    borderColor: "#1F2937",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  goalOptionSelected: {
+    borderColor: "#7C3AED",
+    backgroundColor: "rgba(124, 58, 237, 0.05)",
+  },
+  goalInfo: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  goalTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#F9FAFB",
+    marginBottom: 4,
+  },
+  goalDesc: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    fontWeight: "700",
+    lineHeight: 14,
+  },
+  radio: {
+    height: 18,
+    width: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: "#4B5563",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioChecked: {
+    borderColor: "#7C3AED",
+    backgroundColor: "#7C3AED",
   },
   footer: {
     width: "100%",
+    marginTop: 32,
   },
   primaryButton: {
-    backgroundColor: "#3B82F6", // Brand electric blue
+    backgroundColor: "#7C3AED", // Purple accent
     paddingVertical: 16,
-    borderRadius: 20, // Strict 20px rounded corners
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
+    color: "#F9FAFB",
+    fontSize: 15,
     fontWeight: "900",
-  },
-  secondaryButton: {
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 6,
-  },
-  secondaryButtonText: {
-    color: "#6B7280",
-    fontSize: 12,
-    fontWeight: "800",
   },
   buttonDisabled: {
     opacity: 0.5,

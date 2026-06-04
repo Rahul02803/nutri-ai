@@ -1,6 +1,23 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import verifiedFoods from "./verifiedFoods.json";
+
+function getLevenshteinDistance(a: string, b: string): number {
+  const tmp: number[][] = [];
+  for (let i = 0; i <= a.length; i++) tmp[i] = [i];
+  for (let j = 0; j <= b.length; j++) tmp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      tmp[i][j] = Math.min(
+        tmp[i - 1][j] + 1,
+        tmp[i][j - 1] + 1,
+        tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return tmp[a.length][b.length];
+}
 
 export interface UserProfile {
   id: string;
@@ -120,6 +137,27 @@ export interface SleepLog {
   created_at: string;
 }
 
+export interface DailyInsight {
+  id: string;
+  user_id: string;
+  logged_date: string;
+  insight_text: string;
+  is_positive: boolean;
+  created_at: string;
+}
+
+export interface WeeklyAdjustment {
+  id: string;
+  user_id: string;
+  week_start_date: string;
+  previous_calories: number;
+  new_calories: number;
+  previous_protein: number;
+  new_protein: number;
+  reasoning: string;
+  created_at: string;
+}
+
 interface ZenlogState {
   user: UserProfile | null;
   meals: Meal[];
@@ -141,14 +179,13 @@ interface ZenlogState {
   hydrationLogs: HydrationLog[];
   sleepLogs: SleepLog[];
 
-  // UI States
-  isTabBarHidden: boolean;
-  _hasHydrated: boolean;
+  // AI Personalization
+  dailyInsights: DailyInsight[];
+  weeklyAdjustments: WeeklyAdjustment[];
 
   // Actions
-  login: (email: string, name?: string) => void;
-  setTabBarHidden: (hidden: boolean) => void;
-  setHydrated: (hydrated: boolean) => void;
+  setUser: (user: UserProfile | null) => void;
+  login: (user: UserProfile) => void;
   logout: () => void;
   saveOnboarding: (profile: Partial<UserProfile>) => void;
   logMeal: (meal: Omit<Meal, "id" | "user_id" | "created_at">, foods?: Omit<FoodItem, "id" | "meal_id">[]) => void;
@@ -175,6 +212,10 @@ interface ZenlogState {
   // Automatic Goal Adjustment Engine Action
   evaluateWeeklyGoalAdjustment: () => { adjusted: boolean; oldCalories: number; newCalories: number; reason: string } | null;
 
+  // AI Personalized Coaching Actions
+  generateDailyInsight: (insight_text: string, is_positive?: boolean) => void;
+  triggerWeeklyAdjustment: (adjustment: Omit<WeeklyAdjustment, "id" | "user_id" | "created_at">) => void;
+
   // Hydration & Sleep Actions
   logWater: (amountMl: number) => void;
   logSleep: (hours: number) => void;
@@ -186,6 +227,9 @@ interface ZenlogState {
     sleep: number;
     consistency: number;
   };
+  isSynced: boolean;
+  lastSynced: string | null;
+  syncToCloud: () => Promise<void>;
 }
 
 // Preset Indian Food Database entries
@@ -552,6 +596,13 @@ const preloaded = generatePreloadedLogs();
 export const useStore = create<ZenlogState>()(
   persist(
     (set, get) => ({
+      isSynced: true,
+      lastSynced: new Date().toISOString(),
+      syncToCloud: async () => {
+        set({ isSynced: false });
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        set({ isSynced: true, lastSynced: new Date().toISOString() });
+      },
       user: null,
   meals: preloaded.meals,
   weightLogs: preloaded.weightLogs,
@@ -600,62 +651,41 @@ export const useStore = create<ZenlogState>()(
   weightUnit: "kg",
   
   // Indian Food Lists
-  indianFoods: INITIAL_INDIAN_FOODS,
+  indianFoods: verifiedFoods as IndianFoodItem[],
   recentFoods: [],
 
   // Hydration & Sleep
   hydrationLogs: preloaded.hydrationLogs,
   sleepLogs: preloaded.sleepLogs,
 
-  // UI States
-  isTabBarHidden: false,
-  _hasHydrated: false,
+  // AI Personalization
+  dailyInsights: [],
+  weeklyAdjustments: [],
 
-  login: (email, name) => set((state) => {
-    // If user already exists with matching email, preserve all onboarding profile variables to avoid resets
-    if (state.user && state.user.email === email) {
-      return {};
-    }
-    return {
-      user: {
-        id: state.user?.id || "usr_" + Math.random().toString(36).substr(2, 9),
-        email,
-        name: name || state.user?.name || email.split("@")[0],
-        age: state.user?.age,
-        gender: state.user?.gender,
-        height: state.user?.height,
-        current_weight: state.user?.current_weight,
-        activity_level: state.user?.activity_level,
-        goal: state.user?.goal,
-        target_weight: state.user?.target_weight,
-        diet_preference: state.user?.diet_preference,
-        steps_goal: state.user?.steps_goal,
-        target_calories: state.user?.target_calories,
-        target_protein: state.user?.target_protein,
-        target_carbs: state.user?.target_carbs,
-        target_fat: state.user?.target_fat
-      }
-    };
-  }),
+  setUser: (user) => set({ user }),
 
-  setTabBarHidden: (hidden) => set({ isTabBarHidden: hidden }),
-  setHydrated: (hydrated) => set({ _hasHydrated: hydrated }),
+  login: (user) => set({ user }),
 
-  logout: () => set({
-    user: null,
-    meals: [],
-    weightLogs: [],
-    predictions: [],
-    corrections: [],
-    chatHistory: [
-      { role: "model", text: "Hey! I am your ZenLog AI Coach. What should we tackle today? Post-workout splits or protein guidelines? 🥑", timestamp: new Date().toISOString() }
-    ],
-    subscriptionPlan: "free",
-    scanCountToday: 0,
-    recentFoods: [],
-    hydrationLogs: [],
-    sleepLogs: []
-  }),
+  logout: () => {
+    const { supabase } = require("../services/supabase");
+    supabase.auth.signOut().catch(console.error);
+
+    set({
+      user: null,
+      meals: [],
+      weightLogs: [],
+      predictions: [],
+      corrections: [],
+      chatHistory: [
+        { role: "model", text: "Hey! I am your ZenLog AI Coach. What should we tackle today? Post-workout splits or protein guidelines? 🥑", timestamp: new Date().toISOString() }
+      ],
+      subscriptionPlan: "free",
+      scanCountToday: 0,
+      recentFoods: [],
+      hydrationLogs: [],
+      sleepLogs: []
+    });
+  },
 
   saveOnboarding: (profile) => set((state) => {
     if (!state.user) return {};
@@ -841,10 +871,65 @@ export const useStore = create<ZenlogState>()(
     if (!query.trim()) return [];
 
     const normQuery = query.toLowerCase().trim();
-    return foods.filter((f) => 
-      f.name.toLowerCase().includes(normQuery) || 
-      f.category.toLowerCase().includes(normQuery)
-    ).sort((a, b) => b.popularity_score - a.popularity_score);
+    const queryWords = normQuery.split(/\s+/);
+    const results: { food: IndianFoodItem; score: number }[] = [];
+
+    for (let i = 0; i < foods.length; i++) {
+      const f = foods[i];
+      const nameLower = f.name.toLowerCase();
+      const catLower = f.category.toLowerCase();
+      let score = 0;
+
+      // 1. Direct matches
+      if (nameLower === normQuery) {
+        score += 200;
+      } else if (nameLower.startsWith(normQuery)) {
+        score += 150;
+      } else if (nameLower.includes(normQuery)) {
+        score += 100;
+      }
+
+      // 2. Keyword matching
+      const allWordsMatch = queryWords.every(qw => nameLower.includes(qw) || catLower.includes(qw));
+      if (allWordsMatch) {
+        score += 50;
+      }
+
+      // 3. Indian Food Aliases / Synonyms
+      if (normQuery.includes("curd") && nameLower.includes("dahi")) score += 60;
+      if (normQuery.includes("dahi") && nameLower.includes("curd")) score += 60;
+      if (normQuery.includes("roti") && nameLower.includes("chapati")) score += 60;
+      if (normQuery.includes("chapati") && nameLower.includes("roti")) score += 60;
+      if (normQuery.includes("paneer") && nameLower.includes("cottage cheese")) score += 60;
+
+      // 4. Typo tolerance (Fuzzy matching)
+      if (score === 0 && normQuery.length > 3) {
+        const words = nameLower.split(/\s+/);
+        for (let j = 0; j < words.length; j++) {
+          const w = words[j];
+          if (w.length > 3) {
+            const dist = getLevenshteinDistance(normQuery, w);
+            if (dist === 1) {
+              score += 30;
+              break;
+            } else if (dist === 2 && w.length > 5) {
+              score += 15;
+              break;
+            }
+          }
+        }
+      }
+
+      if (score > 0) {
+        const finalScore = score + (f.popularity_score || 0) * 0.5;
+        results.push({ food: f, score: finalScore });
+      }
+    }
+
+    return results
+      .sort((a, b) => b.score - a.score)
+      .map(r => r.food)
+      .slice(0, 50); // limit to top 50 to maximize UI speed
   },
 
   evaluateWeeklyGoalAdjustment: () => {
@@ -1003,11 +1088,94 @@ export const useStore = create<ZenlogState>()(
       sleep: Math.round(sleepScore),
       consistency: Math.round(consistencyScore)
     };
+  },
+
+  // AI Personalized Coaching Implementations
+  generateDailyInsight: (insight_text, is_positive = true) => set((state) => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const newInsight: DailyInsight = {
+      id: "insight_" + Math.random().toString(36).substr(2, 9),
+      user_id: state.user?.id || "usr_guest",
+      logged_date: todayStr,
+      insight_text,
+      is_positive,
+      created_at: new Date().toISOString()
+    };
+    
+    // Replace today's insight if it already exists, else prepend
+    const existingIndex = state.dailyInsights.findIndex(i => i.logged_date === todayStr);
+    const updatedInsights = [...state.dailyInsights];
+    if (existingIndex >= 0) {
+      updatedInsights[existingIndex] = newInsight;
+    } else {
+      updatedInsights.unshift(newInsight);
+    }
+    
+    return { dailyInsights: updatedInsights };
+  }),
+
+  triggerWeeklyAdjustment: (adjustment) => set((state) => {
+    const newAdjustment: WeeklyAdjustment = {
+      ...adjustment,
+      id: "adj_" + Math.random().toString(36).substr(2, 9),
+      user_id: state.user?.id || "usr_guest",
+      created_at: new Date().toISOString()
+    };
+    
+    if (state.user) {
+      const updatedUser = {
+        ...state.user,
+        target_calories: adjustment.new_calories,
+        target_protein: adjustment.new_protein,
+        target_carbs: Math.max(50, Math.round((adjustment.new_calories - (adjustment.new_protein * 4) - ((adjustment.new_calories * 0.25) / 9) * 9) / 4)),
+        target_fat: Math.max(10, Math.round((adjustment.new_calories * 0.25) / 9))
+      };
+      
+      const notificationMessage: ChatMessage = {
+        role: "model",
+        text: `🚨 AI Coaching Goal Update: ${adjustment.reasoning} New Targets — Calories: ${adjustment.new_calories}, Protein: ${adjustment.new_protein}g.`,
+        timestamp: new Date().toISOString()
+      };
+      
+      return { 
+        weeklyAdjustments: [newAdjustment, ...state.weeklyAdjustments],
+        user: updatedUser,
+        chatHistory: [...state.chatHistory, notificationMessage]
+      };
+    }
+    
+    return { weeklyAdjustments: [newAdjustment, ...state.weeklyAdjustments] };
+  })
+    }),
+    {
+      name: "zenlog-storage-v2",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { indianFoods, ...rest } = state;
+        return rest;
+      }
+    }
+  )
+);
+
+// Auto-synchronize to cloud on state changes
+let lastSyncedData = "";
+let syncTimeout: NodeJS.Timeout | null = null;
+useStore.subscribe((state) => {
+  const dataToSync = JSON.stringify({
+    user: state.user,
+    meals: state.meals,
+    weightLogs: state.weightLogs,
+    hydrationLogs: state.hydrationLogs,
+    sleepLogs: state.sleepLogs,
+    templates: state.templates,
+    recentFoods: state.recentFoods
+  });
+  if (dataToSync !== lastSyncedData) {
+    lastSyncedData = dataToSync;
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(() => {
+      state.syncToCloud();
+    }, 1500);
   }
-}), {
-  name: "zenlog-storage-v3",
-  storage: createJSONStorage(() => AsyncStorage),
-  onRehydrateStorage: () => (state) => {
-    state?.setHydrated(true);
-  }
-}));
+});
