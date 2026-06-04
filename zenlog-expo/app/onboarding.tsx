@@ -19,12 +19,18 @@ export default function OnboardingPage() {
   const [hasDiabetes, setHasDiabetes] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const hydrated = useStore.persist.hasHydrated();
+
   // If no user profile exists in Zustand yet (e.g. bypassed Welcome page), redirect back to index
   useEffect(() => {
-    if (!user) {
+    if (hydrated && !user) {
       router.replace("/");
     }
-  }, [user]);
+  }, [user, hydrated]);
+
+  if (!hydrated) {
+    return null;
+  }
 
   const handleCreatePlan = () => {
     const parsedAge = parseInt(age);
@@ -63,7 +69,7 @@ export default function OnboardingPage() {
       });
 
       // Navigate to main tabs dashboard
-      router.replace("/(tabs)/dashboard");
+      router.replace("/(tabs)");
     } catch (e) {
       console.error("Onboarding submission failed:", e);
       Alert.alert("Error", "Failed to calibrate plan. Please try again.");
