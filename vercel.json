@@ -1,18 +1,23 @@
 {
   "redirects": [
     {
+      "source": "/app-debug.apk",
+      "destination": "https://gofile.io/d/UUbs3X",
+      "permanent": false
+    },
+    {
       "source": "/ZenLog.apk",
-      "destination": "https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk",
+      "destination": "https://gofile.io/d/UUbs3X",
       "permanent": false
     },
     {
       "source": "/NutriAI.apk",
-      "destination": "https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk",
+      "destination": "https://gofile.io/d/UUbs3X",
       "permanent": false
     },
     {
       "source": "/NutriTrack_AI.apk",
-      "destination": "https://github.com/Rahul02803/ZenLog/releases/latest/download/ZenLog.apk",
+      "destination": "https://gofile.io/d/UUbs3X",
       "permanent": false
     }
   ]
