@@ -59,3 +59,6 @@ Below is the validated high-fidelity dark-theme dashboard design mock for the Ze
 - `[x]` **No Clutter**: Avoid dense charts, bright neon grids, or aggressive fitness visual tags.
 - `[x]` **Subtle Shadows**: Apply only soft, clean drop shadows (`rgba(0, 0, 0, 0.02)` for light, `rgba(0, 0, 0, 0.2)` for dark) to denote depth.
 - `[x]` **Focus on Usability**: Ensure every visual statistic (e.g. Protein tracked vs target) is instantly scannable within 0.5 seconds.
+
+<!-- Deploy trigger: 2026-06-05T19:12:00Z -->
+
